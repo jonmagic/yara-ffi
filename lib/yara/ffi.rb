@@ -1,3 +1,7 @@
+require_relative "yr_meta"
+require_relative "yr_namespace"
+require_relative "yr_string"
+require_relative "yr_rule"
 
 module Yara
   # FFI bindings to libyara.
@@ -99,6 +103,8 @@ module Yara
       :pointer,       # user_data_pointer
       :int,           # timeout in seconds
     ], :int
+
+    YR_RULE_TYPE =
 
     ADD_RULE_ERROR_CALLBACK = proc do |error_level, file_name, line_number, message, user_data|
       puts error_level, file_name, line_number, message, user_data

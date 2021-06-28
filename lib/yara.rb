@@ -26,8 +26,8 @@ module Yara
     Yara::FFI.yr_compiler_get_rules(compiler_pointer, rules_pointer)
     rules_pointer = rules_pointer.get_pointer(0)
 
-    result_callback = proc do |message, message_data, user_data|
-      puts message
+    result_callback = proc do |message_number, message_data, user_data|
+      puts message_data.read
       result = 0
     end
 
