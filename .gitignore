@@ -6,4 +6,4 @@
 /pkg/
 /spec/reports/
 /tmp/
-vendor/gems
+vendor/cache/ruby
