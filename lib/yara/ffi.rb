@@ -10,10 +10,10 @@ module Yara
     ffi_lib "libyara"
 
     # int yr_initialize(void)
-    attach_function :yr_initialize, [], :void
+    attach_function :yr_initialize, [], :int
 
     # int yr_finalize(void)
-    attach_function :yr_finalize, [], :void
+    attach_function :yr_finalize, [], :int
 
     # Creates a new compiler and assigns a pointer to that compiler
     # to the pointer passed into the method. To access the complier
