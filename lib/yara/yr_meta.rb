@@ -1,5 +1,5 @@
 module Yara
-  class YrRule < FFI::Struct
+  class YrMeta < FFI::Struct
     layout :identifier, :pointer
     layout :type, :int32
   end
