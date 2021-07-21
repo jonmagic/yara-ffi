@@ -38,14 +38,16 @@ module Yara
     #   int error_level,
     #   const char* file_name,
     #   int line_number,
+    #   const YR_RULE* rule,
     #   const char* message,
     #   void* user_data)
     callback :add_rule_error_callback, [
       :int,       # error_level
       :string,    # file_name
       :int,       # line_number
+      YrRule.ptr, # YrRule*
       :string,    # message
-      :pointer,   # user_data
+      :pointer,   # user_data_pointer
     ], :void
 
     # void yr_compiler_set_callback(
@@ -104,10 +106,8 @@ module Yara
       :int,           # timeout in seconds
     ], :int
 
-    YR_RULE_TYPE =
-
-    ADD_RULE_ERROR_CALLBACK = proc do |error_level, file_name, line_number, message, user_data|
-      puts error_level, file_name, line_number, message, user_data
+    ADD_RULE_ERROR_CALLBACK = proc do |error_level, file_name, line_number, rule, message, user_data|
+      puts error_level, file_name, line_number, rule, message, user_data
     end
 
     SCAN_CALLBACK = proc do |message, message_data, user_data|
