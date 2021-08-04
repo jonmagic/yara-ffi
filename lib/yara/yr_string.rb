@@ -1,5 +1,5 @@
 module Yara
   class YrString < FFI::Struct
-    layout :identifier, :pointer
+    layout :identifier, :string
   end
 end

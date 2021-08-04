@@ -1,5 +1,5 @@
 module Yara
   class YrNamespace < FFI::Struct
-    layout :name, :pointer
+    layout :name, :string
   end
 end

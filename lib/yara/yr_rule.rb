@@ -1,9 +1,10 @@
 module Yara
   class YrRule < FFI::Struct
-    layout :identifier, :pointer
-    layout :tags, :pointer
-    layout :metas, YrMeta.ptr
-    layout :strings, YrString.ptr
-    layout :ns, YrNamespace.ptr
+    layout \
+      :identifier, :string,
+      :tags, :string,
+      :metas, YrMeta.ptr,
+      :strings, YrString.ptr,
+      :ns, YrNamespace.ptr
   end
 end
