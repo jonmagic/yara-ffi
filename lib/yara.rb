@@ -9,6 +9,9 @@ require_relative "yara/ffi"
 module Yara
   class Error < StandardError; end
 
+  CALLBACK_MSG_RULE_MATCHING     = 1
+  CALLBACK_MSG_RULE_NOT_MATCHING = 2
+
   def self.test(rule_string, test_string)
     user_data = UserData.new
     user_data[:number] = 42
@@ -36,22 +39,13 @@ module Yara
     Yara::FFI.yr_compiler_get_rules(compiler_pointer, rules_pointer)
     rules_pointer = rules_pointer.get_pointer(0)
 
-    result_callback = proc do |context_ptr, message_number, message_data_ptr, user_data_ptr|
-      puts "message_number: #{message_number}"
-      rule = YrRule.new(message_data_ptr)
-      puts "members: #{rule.members}"
-      binding.pry
-      # puts rule.values.first.values.inspect
-      # puts rule
-      # puts rule.members.inspect
-      # binding.pry
-
-      # ud = UserData.new(user_data_ptr)
-      # binding.pry
-      # puts "user_data: #{user_data}"
-      # puts user_data.members.inspect
-      # puts user_data.values.inspect
-      result = 0
+    result_callback = proc do |context_ptr, message, message_data_ptr, user_data_ptr|
+      case message
+      when CALLBACK_MSG_RULE_MATCHING
+        result = true
+      when CALLBACK_MSG_RULE_NOT_MATCHING
+        result = false
+      end
     end
 
     Yara::FFI.yr_rules_scan_mem(
