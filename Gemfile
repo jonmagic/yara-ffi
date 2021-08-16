@@ -8,5 +8,6 @@ gem "rake"
 
 group :development, :test do
   gem "minitest"
+  gem "pry"
   gem "rubocop"
 end
