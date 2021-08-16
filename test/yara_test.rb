@@ -3,19 +3,28 @@
 require "test_helper"
 
 class YaraTest < Minitest::Test
-  # def test_that_it_has_a_version_number
-  #   refute_nil ::Yara::VERSION
-  # end
+  def test_that_it_has_a_version_number
+    refute_nil ::Yara::VERSION
+  end
 
-  def test_that_it_works
-    # https://yara.readthedocs.io/en/v3.7.0/writingrules.html#writing-yara-rules
-    rule = <<-RULE
-      rule dummy : foo bar
+  def rule
+    <<-RULE
+      rule ExampleRule
       {
-          condition:
-              false
+        strings:
+          $my_text_string = "we were here"
+
+        condition:
+          $my_text_string
       }
     RULE
-    assert_equal 0, Yara.test(rule, "test string")
+  end
+
+  def test_rule_that_matches
+    assert Yara.test(rule, "i think we were here that one time")
+  end
+
+  def test_rule_that_does_not_match
+    refute Yara.test(rule, "we were never here i'm pretty sure")
   end
 end
