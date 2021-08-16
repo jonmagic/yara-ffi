@@ -24,12 +24,7 @@ module Yara
     compiler_pointer = compiler_pointer.get_pointer(0)
 
     error_callback = proc do |error_level, file_name, line_number, rule, message, user_data|
-      puts error_level
-      puts file_name
-      puts line_number
-      puts rule
-      puts message
-      puts user_data
+      # noop
     end
 
     Yara::FFI.yr_compiler_set_callback(compiler_pointer, error_callback, user_data)
@@ -59,8 +54,6 @@ module Yara
     )
 
     while result.nil? do
-      puts "waiting on result"
-      sleep 0.1
     end
 
     result
