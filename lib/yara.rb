@@ -11,11 +11,15 @@ module Yara
 
   CALLBACK_MSG_RULE_MATCHING     = 1
   CALLBACK_MSG_RULE_NOT_MATCHING = 2
+  CALLBACK_MSG_SCAN_FINISHED     = 3
+
+  RULE_IDENTIFIER = 1
 
   def self.test(rule_string, test_string)
     user_data = UserData.new
     user_data[:number] = 42
-    result = nil
+    scanning = true
+    results = []
 
     Yara::FFI.yr_initialize
 
@@ -35,12 +39,16 @@ module Yara
     rules_pointer = rules_pointer.get_pointer(0)
 
     result_callback = proc do |context_ptr, message, message_data_ptr, user_data_ptr|
+      rule = YrRule.new(message_data_ptr)
+
       case message
       when CALLBACK_MSG_RULE_MATCHING
-        result = true
-      when CALLBACK_MSG_RULE_NOT_MATCHING
-        result = false
+        results << rule.values[RULE_IDENTIFIER]
+      when CALLBACK_MSG_SCAN_FINISHED
+        scanning = false
       end
+
+      0 # ERROR_SUCCESS
     end
 
     Yara::FFI.yr_rules_scan_mem(
@@ -53,10 +61,10 @@ module Yara
       1,
     )
 
-    while result.nil? do
+    while scanning do
     end
 
-    result
+    results
   ensure
     Yara::FFI.yr_finalize
   end

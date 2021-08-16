@@ -21,10 +21,12 @@ class YaraTest < Minitest::Test
   end
 
   def test_rule_that_matches
-    assert Yara.test(rule, "i think we were here that one time")
+    expected_results = ["ExampleRule"]
+    assert_equal expected_results, Yara.test(rule, "i think we were here that one time")
   end
 
   def test_rule_that_does_not_match
-    refute Yara.test(rule, "we were never here i'm pretty sure")
+    expected_results = []
+    assert_equal expected_results, Yara.test(rule, "we were never here i'm pretty sure")
   end
 end
