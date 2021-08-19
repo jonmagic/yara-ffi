@@ -5,7 +5,6 @@ require "pry"
 require_relative "yara/version"
 require_relative "yara/ffi"
 
-# TBD
 module Yara
   class Error < StandardError; end
 
@@ -17,7 +16,6 @@ module Yara
 
   def self.test(rule_string, test_string)
     user_data = UserData.new
-    user_data[:number] = 42
     scanning = true
     results = []
 
