@@ -2,17 +2,12 @@
 
 require "ffi"
 require "pry"
-require_relative "yara/version"
 require_relative "yara/ffi"
+require_relative "yara/scan_result"
+require_relative "yara/version"
 
 module Yara
   class Error < StandardError; end
-
-  CALLBACK_MSG_RULE_MATCHING     = 1
-  CALLBACK_MSG_RULE_NOT_MATCHING = 2
-  CALLBACK_MSG_SCAN_FINISHED     = 3
-
-  RULE_IDENTIFIER = 1
 
   def self.test(rule_string, test_string)
     user_data = UserData.new
@@ -37,13 +32,11 @@ module Yara
     rules_pointer = rules_pointer.get_pointer(0)
 
     result_callback = proc do |context_ptr, message, message_data_ptr, user_data_ptr|
-      rule = YrRule.new(message_data_ptr)
-
-      case message
-      when CALLBACK_MSG_RULE_MATCHING
-        results << rule.values[RULE_IDENTIFIER]
-      when CALLBACK_MSG_SCAN_FINISHED
+      result = ScanResult.new(message, message_data_ptr)
+      if result.scan_complete?
         scanning = false
+      elsif result.rule_outcome?
+        results << result
       end
 
       0 # ERROR_SUCCESS
