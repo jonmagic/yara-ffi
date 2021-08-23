@@ -2,6 +2,9 @@ module Yara
   class YrMeta < FFI::Struct
     layout \
       :identifier, :string,
-      :type, :int32_t
+      :string, :string,
+      :integer, :int64_t,
+      :type, :int32_t,
+      :flags, :int32_t
   end
 end

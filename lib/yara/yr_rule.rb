@@ -4,7 +4,7 @@ module Yara
       :flags, :int32_t,
       :identifier, :string,
       :tags, :string,
-      :metas, YrMeta.ptr,
+      :metas, :pointer,
       :strings, YrString.ptr,
       :ns, YrNamespace.ptr
   end
