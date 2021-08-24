@@ -7,6 +7,8 @@ require_relative "yara/scan_result"
 require_relative "yara/version"
 
 module Yara
+  SCAN_FINISHED = 3
+
   class Error < StandardError; end
 
   def self.test(rule_string, test_string)
@@ -31,12 +33,12 @@ module Yara
     Yara::FFI.yr_compiler_get_rules(compiler_pointer, rules_pointer)
     rules_pointer = rules_pointer.get_pointer(0)
 
-    result_callback = proc do |context_ptr, message, message_data_ptr, user_data_ptr|
-      result = ScanResult.new(message, message_data_ptr)
-      if result.scan_complete?
+    result_callback = proc do |context_ptr, callback_type, rule_ptr, user_data_ptr|
+      if callback_type == SCAN_FINISHED
         scanning = false
-      elsif result.rule_outcome?
-        results << result
+      else
+        result = ScanResult.new(callback_type, rule_ptr)
+        results << result if result.rule_outcome?
       end
 
       0 # ERROR_SUCCESS

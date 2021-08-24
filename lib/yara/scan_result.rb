@@ -2,7 +2,6 @@ module Yara
   class ScanResult
     RULE_MATCHING     = 1
     RULE_NOT_MATCHING = 2
-    SCAN_FINISHED     = 3
 
     META_FLAGS_LAST_IN_RULE = 1
 
