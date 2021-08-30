@@ -46,4 +46,9 @@ class YaraTest < Minitest::Test
     }
     assert_equal expected_meta, result.rule_meta
   end
+
+  def test_string_with_null_byte
+    result = Yara.test(rule, "hi\000").first
+    refute result.match?
+  end
 end

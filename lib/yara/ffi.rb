@@ -100,7 +100,7 @@ module Yara
     #   int timeout)
     attach_function :yr_rules_scan_mem, [
       :pointer,       # rules_pointer*
-      :string,        # buffer (aka test subject)
+      :pointer,       # buffer (aka test subject)
       :size_t,        # buffer size (String#bytesize)
       :int,           # flags
       :scan_callback, # proc

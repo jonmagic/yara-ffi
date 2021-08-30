@@ -44,10 +44,14 @@ module Yara
       0 # ERROR_SUCCESS
     end
 
+    test_string_bytesize = test_string.bytesize
+    test_string_pointer = ::FFI::MemoryPointer.new(:char, test_string_bytesize)
+    test_string_pointer.put_bytes(0, test_string)
+
     Yara::FFI.yr_rules_scan_mem(
       rules_pointer,
-      test_string,
-      test_string.bytesize,
+      test_string_pointer,
+      test_string_bytesize,
       0,
       result_callback,
       user_data,
