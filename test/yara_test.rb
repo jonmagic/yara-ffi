@@ -19,9 +19,10 @@ class YaraTest < Minitest::Test
 
         strings:
           $my_text_string = "we were here"
+          $my_text_regex = /were here/
 
         condition:
-          $my_text_string
+          $my_text_string or $my_text_regex
       }
     RULE
   end
@@ -45,6 +46,15 @@ class YaraTest < Minitest::Test
       int_meta: 123
     }
     assert_equal expected_meta, result.rule_meta
+  end
+
+  def test_rule_string_parsing
+    result = Yara.test(rule, "i think we were here that one time").first
+    expected_strings = {
+      "$my_text_string": "we were here",
+      "$my_text_regex": "were here",
+    }
+    assert_equal expected_strings, result.rule_strings
   end
 
   def test_string_with_null_byte
