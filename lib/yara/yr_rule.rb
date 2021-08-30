@@ -5,7 +5,7 @@ module Yara
       :identifier, :string,
       :tags, :string,
       :metas, :pointer,
-      :strings, YrString.ptr,
+      :strings, :pointer,
       :ns, YrNamespace.ptr
   end
 end

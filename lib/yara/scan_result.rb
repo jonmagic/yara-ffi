@@ -9,8 +9,14 @@ module Yara
     META_TYPE_STRING  = 2
     META_TYPE_BOOLEAN = 3
 
+    STRING_FLAGS_LAST_IN_RULE = 0
+
+    STRING_LENGTH = 4
+    STRING_POINTER = 5
+
     RULE_IDENTIFIER  = 1
     METAS_IDENTIFIER = 3
+    STRING_IDENTIFIER = 4
 
     attr_reader :callback_type, :rule
 
@@ -41,6 +47,25 @@ module Yara
       metas
     end
 
+    def rule_strings
+      strings = {}
+      reading_strings = true
+      string_index = 0
+      string_pointer = @rule.values[STRING_IDENTIFIER]
+      while reading_strings do
+        string = YrString.new(string_pointer + string_index * YrString.size)
+        string_length = string.values[STRING_LENGTH]
+        flags = string.values.first
+        if flags == STRING_FLAGS_LAST_IN_RULE
+          reading_strings = false
+        else
+          strings.merge!(string_as_hash(string)) unless string_length == 0
+          string_index += 1
+        end
+      end
+      strings
+    end
+
     def scan_complete?
       callback_type == SCAN_FINISHED
     end
@@ -59,6 +84,12 @@ module Yara
       name, string_value, int_value, type, _flags = meta.values
       value = meta_value(string_value, int_value, type)
       { name.to_sym => value }
+    end
+
+    def string_as_hash(yr_string)
+      string_pointer = yr_string.values[STRING_POINTER]
+      string_identifier = yr_string.values.last
+      { string_identifier.to_sym => string_pointer.read_string }
     end
 
     def meta_value(string_value, int_value, type)
