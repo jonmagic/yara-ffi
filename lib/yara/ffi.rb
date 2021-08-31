@@ -35,7 +35,7 @@ module Yara
       :pointer, # compiler_pointer
     ], :void
 
-    # int yr_compiler_destroy(YR_COMPILER* compiler)
+    # int yr_rules_destroy(YR_RULES* rules)
     attach_function :yr_rules_destroy, [
       :pointer, # rules_pointer
     ], :void
