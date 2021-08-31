@@ -61,4 +61,16 @@ class YaraTest < Minitest::Test
     result = Yara.test(rule, "hi\000").first
     refute result.match?
   end
+
+  def test_there_is_no_memory_leak
+    Yara.test(rule, "i think we were here that one time")
+    baseline = ObjectSpace::memsize_of_all
+    memory_sizes = []
+    100.times do
+      Yara.test(rule, "i think we were here that one time")
+      memory_sizes << ObjectSpace::memsize_of_all
+    end
+    on_average_grew_by = memory_sizes[1..-1].map.with_index { |size, i| size - memory_sizes[i - 1] }.reduce(:+) / memory_sizes.size - 1
+    assert memory_sizes.all? { |size| size < baseline + 10_000 }, "Memory leak detected, baseline was #{baseline} bytes and it grew by #{on_average_grew_by} bytes on average per Yara.test execution."
+  end
 end
