@@ -63,6 +63,8 @@ module Yara
 
     results
   ensure
+    Yara::FFI.yr_rules_destroy(rules_pointer)
+    Yara::FFI.yr_compiler_destroy(compiler_pointer)
     Yara::FFI.yr_finalize
   end
 end

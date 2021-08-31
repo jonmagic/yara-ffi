@@ -35,6 +35,11 @@ module Yara
       :pointer, # compiler_pointer
     ], :void
 
+    # int yr_rules_destroy(YR_RULES* rules)
+    attach_function :yr_rules_destroy, [
+      :pointer, # rules_pointer
+    ], :void
+
     # void callback_function(
     #   int error_level,
     #   const char* file_name,
