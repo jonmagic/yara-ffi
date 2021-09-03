@@ -37,7 +37,9 @@ module Yara
       if callback_type == SCAN_FINISHED
         scanning = false
       else
-        result = ScanResult.new(callback_type, rule_ptr)
+        result = ScanResult.new(context_ptr, callback_type, rule_ptr)
+        context = YrScanContext.new(context_ptr)
+        require'pry';binding.pry
         results << result if result.rule_outcome?
       end
 

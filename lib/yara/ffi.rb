@@ -1,5 +1,8 @@
+require_relative "yr_match"
+require_relative "yr_matches"
 require_relative "yr_meta"
 require_relative "yr_namespace"
+require_relative "yr_scan_context"
 require_relative "yr_string"
 require_relative "yr_rule"
 require_relative "user_data"

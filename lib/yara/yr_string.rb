@@ -3,7 +3,7 @@ module Yara
     layout \
       :flags, :uint32_t,
       :idx, :uint32_t,
-      :fixed_offset, :int64_t,
+      :fixed_offset, :uint64_t,
       :rule_idx, :uint32_t,
       :length, :int32_t,
       :string, :pointer,

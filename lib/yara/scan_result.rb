@@ -18,11 +18,12 @@ module Yara
     METAS_IDENTIFIER = 3
     STRING_IDENTIFIER = 4
 
-    attr_reader :callback_type, :rule
+    attr_reader :callback_type, :context, :rule
 
-    def initialize(callback_type, rule_ptr)
+    def initialize(context_ptr, callback_type, rule_ptr)
       @callback_type = callback_type
       @rule = YrRule.new(rule_ptr)
+      @context = YrScanContext.new(context_ptr)
     end
 
     def rule_name
@@ -52,6 +53,7 @@ module Yara
       reading_strings = true
       string_index = 0
       string_pointer = @rule.values[STRING_IDENTIFIER]
+      require'pry';binding.pry
       while reading_strings do
         string = YrString.new(string_pointer + string_index * YrString.size)
         string_length = string.values[STRING_LENGTH]
