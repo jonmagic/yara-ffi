@@ -14,10 +14,6 @@ module Yara
     STRING_LENGTH = 4
     STRING_POINTER = 5
 
-    RULE_IDENTIFIER  = 1
-    METAS_IDENTIFIER = 3
-    STRING_IDENTIFIER = 4
-
     attr_reader :callback_type, :rule
 
     def initialize(callback_type, rule_ptr)
@@ -30,7 +26,7 @@ module Yara
     attr_reader :rule_meta, :rule_strings
 
     def rule_name
-      @rule.values[RULE_IDENTIFIER]
+      @rule[:identifier]
     end
 
     def scan_complete?
@@ -51,7 +47,7 @@ module Yara
       metas = {}
       reading_metas = true
       meta_index = 0
-      meta_pointer = @rule.values[METAS_IDENTIFIER]
+      meta_pointer = @rule[:metas]
       while reading_metas do
         meta = YrMeta.new(meta_pointer + meta_index * YrMeta.size)
         metas.merge!(meta_as_hash(meta))
@@ -69,7 +65,7 @@ module Yara
       strings = {}
       reading_strings = true
       string_index = 0
-      string_pointer = @rule.values[STRING_IDENTIFIER]
+      string_pointer = @rule[:strings]
       while reading_strings do
         string = YrString.new(string_pointer + string_index * YrString.size)
         string_length = string.values[STRING_LENGTH]
