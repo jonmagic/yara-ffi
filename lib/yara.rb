@@ -13,6 +13,7 @@ module Yara
 
   def self.test(rule_string, test_string)
     user_data = UserData.new
+    user_data[:number] = 42
     scanning = true
     results = []
 
@@ -33,11 +34,11 @@ module Yara
     Yara::FFI.yr_compiler_get_rules(compiler_pointer, rules_pointer)
     rules_pointer = rules_pointer.get_pointer(0)
 
-    result_callback = proc do |context_ptr, callback_type, rule_ptr, user_data_ptr|
+    result_callback = proc do |context_ptr, callback_type, rule, user_data|
       if callback_type == SCAN_FINISHED
         scanning = false
       else
-        result = ScanResult.new(callback_type, rule_ptr)
+        result = ScanResult.new(callback_type, rule, user_data)
         results << result if result.rule_outcome?
       end
 

@@ -90,9 +90,9 @@ module Yara
     #   void* user_data)
     callback :scan_callback, [
       :pointer,       # YR_SCAN_CONTEXT*
-      :int,           # message
-      :pointer,       # message_data_pointer
-      :pointer,       # user_data_pointer
+      :int,           # callback_type
+      YrRule.ptr,     # rule
+      UserData.ptr,   # user_data
     ], :int
 
     # int yr_rules_scan_mem(

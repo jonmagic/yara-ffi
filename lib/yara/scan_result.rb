@@ -13,14 +13,15 @@ module Yara
 
     attr_reader :callback_type, :rule
 
-    def initialize(callback_type, rule_ptr)
+    def initialize(callback_type, rule, user_data)
       @callback_type = callback_type
-      @rule = YrRule.new(rule_ptr)
+      @rule = rule
       @rule_meta = extract_rule_meta
       @rule_strings = extract_rule_strings
+      @user_data_number = user_data[:number]
     end
 
-    attr_reader :rule_meta, :rule_strings
+    attr_reader :rule_meta, :rule_strings, :user_data_number
 
     def rule_name
       @rule[:identifier]
