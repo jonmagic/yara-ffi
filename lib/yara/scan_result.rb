@@ -6,24 +6,22 @@ module Yara
     META_FLAGS_LAST_IN_RULE = 1
 
     META_TYPE_INTEGER = 1
-    META_TYPE_STRING  = 2
+    # META_TYPE_STRING  = 2
     META_TYPE_BOOLEAN = 3
 
     STRING_FLAGS_LAST_IN_RULE = 0
 
-    STRING_LENGTH = 4
-    STRING_POINTER = 5
-
     attr_reader :callback_type, :rule
 
-    def initialize(callback_type, rule_ptr)
+    def initialize(callback_type, rule, user_data)
       @callback_type = callback_type
-      @rule = YrRule.new(rule_ptr)
+      @rule = rule
       @rule_meta = extract_rule_meta
       @rule_strings = extract_rule_strings
+      @user_data_number = user_data[:number]
     end
 
-    attr_reader :rule_meta, :rule_strings
+    attr_reader :rule_meta, :rule_strings, :user_data_number
 
     def rule_name
       @rule[:identifier]
@@ -51,7 +49,7 @@ module Yara
       while reading_metas do
         meta = YrMeta.new(meta_pointer + meta_index * YrMeta.size)
         metas.merge!(meta_as_hash(meta))
-        flags = meta.values.last
+        flags = meta[:flags]
         if flags == META_FLAGS_LAST_IN_RULE
           reading_metas = false
         else
@@ -68,8 +66,8 @@ module Yara
       string_pointer = @rule[:strings]
       while reading_strings do
         string = YrString.new(string_pointer + string_index * YrString.size)
-        string_length = string.values[STRING_LENGTH]
-        flags = string.values.first
+        string_length = string[:length]
+        flags = string[:flags]
         if flags == STRING_FLAGS_LAST_IN_RULE
           reading_strings = false
         else
@@ -81,14 +79,13 @@ module Yara
     end
 
     def meta_as_hash(meta)
-      name, string_value, int_value, type, _flags = meta.values
-      value = meta_value(string_value, int_value, type)
-      { name.to_sym => value }
+      value = meta_value(meta[:string], meta[:integer], meta[:type])
+      { meta[:identifier].to_sym => value }
     end
 
     def string_as_hash(yr_string)
-      string_pointer = yr_string.values[STRING_POINTER]
-      string_identifier = yr_string.values.last
+      string_pointer = yr_string[:string]
+      string_identifier = yr_string[:identifier]
       { string_identifier.to_sym => string_pointer.read_string }
     end
 

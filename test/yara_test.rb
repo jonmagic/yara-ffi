@@ -61,4 +61,9 @@ class YaraTest < Minitest::Test
     result = Yara.test(rule, "hi\000").first
     refute result.match?
   end
+
+  def test_user_data
+    result = Yara.test(rule, "i think we were here that one time").first
+    assert_equal 42, result.user_data_number
+  end
 end
