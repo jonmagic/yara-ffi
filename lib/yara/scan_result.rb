@@ -14,56 +14,19 @@ module Yara
     STRING_LENGTH = 4
     STRING_POINTER = 5
 
-    RULE_IDENTIFIER  = 1
-    METAS_IDENTIFIER = 3
-    STRING_IDENTIFIER = 4
-
     attr_reader :callback_type, :rule
 
     def initialize(callback_type, rule_ptr)
       @callback_type = callback_type
       @rule = YrRule.new(rule_ptr)
+      @rule_meta = extract_rule_meta
+      @rule_strings = extract_rule_strings
     end
+
+    attr_reader :rule_meta, :rule_strings
 
     def rule_name
-      @rule.values[RULE_IDENTIFIER]
-    end
-
-    def rule_meta
-      metas = {}
-      reading_metas = true
-      meta_index = 0
-      meta_pointer = @rule.values[METAS_IDENTIFIER]
-      while reading_metas do
-        meta = YrMeta.new(meta_pointer + meta_index * YrMeta.size)
-        metas.merge!(meta_as_hash(meta))
-        flags = meta.values.last
-        if flags == META_FLAGS_LAST_IN_RULE
-          reading_metas = false
-        else
-          meta_index += 1
-        end
-      end
-      metas
-    end
-
-    def rule_strings
-      strings = {}
-      reading_strings = true
-      string_index = 0
-      string_pointer = @rule.values[STRING_IDENTIFIER]
-      while reading_strings do
-        string = YrString.new(string_pointer + string_index * YrString.size)
-        string_length = string.values[STRING_LENGTH]
-        flags = string.values.first
-        if flags == STRING_FLAGS_LAST_IN_RULE
-          reading_strings = false
-        else
-          strings.merge!(string_as_hash(string)) unless string_length == 0
-          string_index += 1
-        end
-      end
-      strings
+      @rule[:identifier]
     end
 
     def scan_complete?
@@ -79,6 +42,43 @@ module Yara
     end
 
     private
+
+    def extract_rule_meta
+      metas = {}
+      reading_metas = true
+      meta_index = 0
+      meta_pointer = @rule[:metas]
+      while reading_metas do
+        meta = YrMeta.new(meta_pointer + meta_index * YrMeta.size)
+        metas.merge!(meta_as_hash(meta))
+        flags = meta.values.last
+        if flags == META_FLAGS_LAST_IN_RULE
+          reading_metas = false
+        else
+          meta_index += 1
+        end
+      end
+      metas
+    end
+
+    def extract_rule_strings
+      strings = {}
+      reading_strings = true
+      string_index = 0
+      string_pointer = @rule[:strings]
+      while reading_strings do
+        string = YrString.new(string_pointer + string_index * YrString.size)
+        string_length = string.values[STRING_LENGTH]
+        flags = string.values.first
+        if flags == STRING_FLAGS_LAST_IN_RULE
+          reading_strings = false
+        else
+          strings.merge!(string_as_hash(string)) unless string_length == 0
+          string_index += 1
+        end
+      end
+      strings
+    end
 
     def meta_as_hash(meta)
       name, string_value, int_value, type, _flags = meta.values
