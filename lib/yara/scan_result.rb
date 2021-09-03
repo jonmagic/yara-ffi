@@ -23,13 +23,31 @@ module Yara
     def initialize(callback_type, rule_ptr)
       @callback_type = callback_type
       @rule = YrRule.new(rule_ptr)
+      @rule_meta = extract_rule_meta
+      @rule_strings = extract_rule_strings
     end
+
+    attr_reader :rule_meta, :rule_strings
 
     def rule_name
       @rule.values[RULE_IDENTIFIER]
     end
 
-    def rule_meta
+    def scan_complete?
+      callback_type == SCAN_FINISHED
+    end
+
+    def rule_outcome?
+      [RULE_MATCHING, RULE_NOT_MATCHING].include?(callback_type)
+    end
+
+    def match?
+      callback_type == RULE_MATCHING
+    end
+
+    private
+
+    def extract_rule_meta
       metas = {}
       reading_metas = true
       meta_index = 0
@@ -47,7 +65,7 @@ module Yara
       metas
     end
 
-    def rule_strings
+    def extract_rule_strings
       strings = {}
       reading_strings = true
       string_index = 0
@@ -65,20 +83,6 @@ module Yara
       end
       strings
     end
-
-    def scan_complete?
-      callback_type == SCAN_FINISHED
-    end
-
-    def rule_outcome?
-      [RULE_MATCHING, RULE_NOT_MATCHING].include?(callback_type)
-    end
-
-    def match?
-      callback_type == RULE_MATCHING
-    end
-
-    private
 
     def meta_as_hash(meta)
       name, string_value, int_value, type, _flags = meta.values
