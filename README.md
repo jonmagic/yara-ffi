@@ -20,7 +20,34 @@ Or install it yourself as:
 
 ## Usage
 
-TODO: Write usage instructions here
+```ruby
+Yara.start # run before you start using the Yara API.
+
+rule = <<-RULE
+rule ExampleRule
+{
+meta:
+    string_meta = "an example rule for testing"
+
+strings:
+    $my_text_string = "we were here"
+    $my_text_regex = /were here/
+
+condition:
+    $my_text_string or $my_text_regex
+}
+RULE
+
+scanner = Yara::Scanner.new
+scanner.add_rule(rule)
+scanner.compile
+result = scanner.call("one day we were here and then we were not")
+result.match?
+# => true
+
+scanner.close   # run when you are done using the scanner API and want to free up memory.
+Yara.stop       # run when you are completely done using the Yara API to free up memory.
+```
 
 ## Development
 

@@ -4,6 +4,7 @@ require "ffi"
 require "pry"
 require_relative "yara/ffi"
 require_relative "yara/scan_result"
+require_relative "yara/scanner"
 require_relative "yara/version"
 
 module Yara
@@ -11,61 +12,22 @@ module Yara
 
   class Error < StandardError; end
 
-  def self.test(rule_string, test_string)
-    user_data = UserData.new
-    user_data[:number] = 42
-    scanning = true
-    results = []
-
+  def self.start
     Yara::FFI.yr_initialize
+  end
 
-    compiler_pointer = ::FFI::MemoryPointer.new(:pointer)
-    Yara::FFI.yr_compiler_create(compiler_pointer)
-    compiler_pointer = compiler_pointer.get_pointer(0)
-
-    error_callback = proc do |error_level, file_name, line_number, rule, message, user_data|
-      # noop
-    end
-
-    Yara::FFI.yr_compiler_set_callback(compiler_pointer, error_callback, user_data)
-    Yara::FFI.yr_compiler_add_string(compiler_pointer, rule_string, nil)
-
-    rules_pointer =::FFI::MemoryPointer.new(:pointer)
-    Yara::FFI.yr_compiler_get_rules(compiler_pointer, rules_pointer)
-    rules_pointer = rules_pointer.get_pointer(0)
-
-    result_callback = proc do |context_ptr, callback_type, rule, user_data|
-      if callback_type == SCAN_FINISHED
-        scanning = false
-      else
-        result = ScanResult.new(callback_type, rule, user_data)
-        results << result if result.rule_outcome?
-      end
-
-      0 # ERROR_SUCCESS
-    end
-
-    test_string_bytesize = test_string.bytesize
-    test_string_pointer = ::FFI::MemoryPointer.new(:char, test_string_bytesize)
-    test_string_pointer.put_bytes(0, test_string)
-
-    Yara::FFI.yr_rules_scan_mem(
-      rules_pointer,
-      test_string_pointer,
-      test_string_bytesize,
-      0,
-      result_callback,
-      user_data,
-      1,
-    )
-
-    while scanning do
-    end
-
-    results
-  ensure
-    Yara::FFI.yr_rules_destroy(rules_pointer)
-    Yara::FFI.yr_compiler_destroy(compiler_pointer)
+  def self.stop
     Yara::FFI.yr_finalize
+  end
+
+  def self.test(rule_string, test_string)
+    start
+    scanner = Yara::Scanner.new
+    scanner.add_rule(rule_string)
+    scanner.compile
+    scanner.call(test_string)
+  ensure
+    scanner.close
+    stop
   end
 end
