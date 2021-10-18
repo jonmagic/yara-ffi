@@ -8,10 +8,6 @@ require_relative "yara/scanner"
 require_relative "yara/version"
 
 module Yara
-  SCAN_FINISHED = 3
-
-  class Error < StandardError; end
-
   def self.start
     Yara::FFI.yr_initialize
   end
