@@ -8,8 +8,8 @@ module Yara
 
     SCAN_FINISHED = 3
 
-    # Public: Initializes instance of scanner. Under the hood this calls yr_initialize, then
-    # creates a pointer, then calls yr_compiler_create with that pointer.
+    # Public: Initializes instance of scanner. Under the hood this creates a pointer,
+    # then calls yr_compiler_create with that pointer.
     #
     # error_callback: (optional) Proc to be called when an error occurs.
     # user_data: (optional) Instance of UserData to store and pass information.
