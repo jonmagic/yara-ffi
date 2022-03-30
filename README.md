@@ -41,7 +41,7 @@ RULE
 scanner = Yara::Scanner.new
 scanner.add_rule(rule)
 scanner.compile
-result = scanner.call("one day we were here and then we were not")
+result = scanner.call("one day we were here and then we were not").first
 result.match?
 # => true
 
