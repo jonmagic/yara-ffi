@@ -3,8 +3,8 @@ module Yara
     layout \
       :identifier, :string,
       :string, :string,
-      :integer, :int64_t,
-      :type, :int32_t,
-      :flags, :int32_t
+      :integer, :ulong_long,
+      :type, :int,
+      :flags, :int
   end
 end
