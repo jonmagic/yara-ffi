@@ -1,7 +1,7 @@
 module Yara
   class YrRule < FFI::Struct
     layout \
-      :flags, :int32_t,
+      :flags, :int,
       :identifier, :string,
       :tags, :string,
       :metas, :pointer,

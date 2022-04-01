@@ -1,15 +1,15 @@
 module Yara
   class YrString < FFI::Struct
     layout \
-      :flags, :uint32_t,
-      :idx, :uint32_t,
-      :fixed_offset, :int64_t,
-      :rule_idx, :uint32_t,
-      :length, :int32_t,
+      :flags, :uint,
+      :idx, :uint,
+      :fixed_offset, :ulong_long,
+      :rule_idx, :uint,
+      :length, :uint,
       :string, :pointer,
       :chained_to, :pointer,
-      :chain_gap_min, :int32_t,
-      :chain_gap_max, :int32_t,
+      :chain_gap_min, :uint,
+      :chain_gap_max, :uint,
       :identifier, :string
   end
 end

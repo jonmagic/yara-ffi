@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    yara-ffi (2.1.1)
+    yara-ffi (3.0.0)
       ffi
 
 GEM
@@ -9,7 +9,7 @@ GEM
   specs:
     ast (2.4.2)
     coderay (1.1.3)
-    ffi (1.15.4)
+    ffi (1.15.5)
     method_source (1.0.0)
     minitest (5.14.4)
     parallel (1.20.1)
@@ -37,6 +37,7 @@ GEM
     unicode-display_width (2.0.0)
 
 PLATFORMS
+  arm64-darwin-21
   x86_64-darwin-19
   x86_64-linux
 
@@ -48,4 +49,4 @@ DEPENDENCIES
   yara-ffi!
 
 BUNDLED WITH
-   2.2.15
+   2.2.32
