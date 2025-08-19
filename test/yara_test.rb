@@ -33,8 +33,8 @@ class YaraTest < Minitest::Test
   end
 
   def test_rule_that_does_not_match
-    result = Yara.test(rule, "we were never here i'm pretty sure").first
-    refute result.match?
+    results = Yara.test(rule, "we were never here i'm pretty sure")
+    assert_empty results
   end
 
   def test_rule_meta_parsing
@@ -58,7 +58,7 @@ class YaraTest < Minitest::Test
   end
 
   def test_string_with_null_byte
-    result = Yara.test(rule, "hi\000").first
-    refute result.match?
+    results = Yara.test(rule, "hi\000")
+    assert_empty results
   end
 end

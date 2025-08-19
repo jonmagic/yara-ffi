@@ -87,14 +87,6 @@ module Yara
         raise ScanError, "Scan failed: #{error_msg}"
       end
 
-      # For backward compatibility, if no matches, return a non-matching result
-      # This is different from libyara behavior but needed for existing tests
-      if results.empty?
-        # Parse the first rule name from the rule source for non-match result
-        rule_name = extract_first_rule_name_from_source
-        results << ScanResult.new(rule_name, nil, false, @rule_source) # false = no match
-      end
-
       results
     end
 
@@ -103,14 +95,6 @@ module Yara
       Yara::FFI.yrx_rules_destroy(@rules_pointer) if @rules_pointer
       @scanner_pointer = nil
       @rules_pointer = nil
-    end
-
-    private
-
-    def extract_first_rule_name_from_source
-      # Simple regex to extract the first rule name from source
-      match = @rule_source.match(/rule\s+(\w+)/)
-      match ? match[1] : "UnknownRule"
     end
   end
 end
