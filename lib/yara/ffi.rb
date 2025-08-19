@@ -3,16 +3,26 @@ module Yara
   module FFI
     extend ::FFI::Library
 
-    # Try different library paths for yara-x C API
-    begin
-      ffi_lib "/usr/local/lib/aarch64-linux-gnu/libyara_x_capi.so"
-    rescue LoadError
+    library_paths = [
+      "yara_x_capi",                                          # System library (preferred)
+      "/usr/local/lib/x86_64-linux-gnu/libyara_x_capi.so",    # GitHub Actions/CI
+      "/usr/local/lib/aarch64-linux-gnu/libyara_x_capi.so",   # Local Docker (ARM)
+      "/usr/local/lib/libyara_x_capi.so",                     # Generic fallback
+      "libyara_x_capi"                                        # Final fallback
+    ]
+
+    library_loaded = false
+    library_paths.each do |path|
       begin
-        ffi_lib "yara_x_capi"
+        ffi_lib path
+        library_loaded = true
+        break
       rescue LoadError
-        ffi_lib "libyara_x_capi"
+        next
       end
     end
+
+    raise LoadError, "Could not load yara_x_capi library from any of: #{library_paths.join(', ')}" unless library_loaded
 
     # Simple compilation function for basic use cases
     # enum YRX_RESULT yrx_compile(const char *src, struct YRX_RULES **rules)
