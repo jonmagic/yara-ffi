@@ -1,5 +1,24 @@
 ## [Unreleased]
 
+## [4.0.0] - 2025-08-19
+
+- **BREAKING**: Migrated from legacy libyara FFI bindings to YARA-X C API (`libyara_x_capi.so`) ([#24](https://github.com/jonmagic/yara-ffi/pull/24))
+  - Removed all legacy FFI struct definitions (`YrRule`, `YrMeta`, `YrString`, etc.)
+  - Replaced incremental rule compilation with single-step compilation via `yrx_compile`
+  - Eliminated dependency on `Yara.start` and `Yara.stop` lifecycle methods
+- **BREAKING**: Changed `Scanner#call` to `Scanner#scan` method ([#24](https://github.com/jonmagic/yara-ffi/pull/24))
+- **BREAKING**: Require Ruby >= 3.0.0 ([#24](https://github.com/jonmagic/yara-ffi/pull/24))
+- **BREAKING**: Remove `ScanResult` return for non-matching scans ([#24](https://github.com/jonmagic/yara-ffi/pull/24))
+- Added `Yara::ScanResults` enumerable collection for managing scan results ([#24](https://github.com/jonmagic/yara-ffi/pull/24))
+- Added `Scanner.open` for block-based resource management ([#24](https://github.com/jonmagic/yara-ffi/pull/24))
+- Added streaming scan API support with block yielding ([#24](https://github.com/jonmagic/yara-ffi/pull/24))
+- Modernized CI workflow with Ruby 3.0-3.3 matrix testing and YARA-X build support ([#24](https://github.com/jonmagic/yara-ffi/pull/24))
+- Added comprehensive development documentation in `DEVELOPMENT.md` ([#24](https://github.com/jonmagic/yara-ffi/pull/24))
+- Updated Docker environment to Ruby 3.3 with YARA-X v1.5.0 ([#24](https://github.com/jonmagic/yara-ffi/pull/24))
+- Improved error handling for compilation and scanning with better exception handling
+- Preserved backward compatibility in `ScanResult` interface via fallback parsing
+- Removed obsolete helper files: `user_data.rb`, `yr_meta.rb`, `yr_string.rb`, `yr_namespace.rb`, `yr_rule.rb`
+
 ## [3.1.0] - 2022-04-18
 
 - Minor documentation fix for `Scanner::call` return value ([#20](https://github.com/jonmagic/yara-ffi/pull/20))
