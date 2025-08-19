@@ -166,12 +166,7 @@ You'll need the YARA-X C API library installed on your system. You can:
 
 ## Development
 
-After checking out the repo, run `bin/setup` to install dependencies. Then, run `rake test` to run the tests. You can also run `bin/console` for an interactive prompt that will allow you to experiment.
-
-To run tests:
-```bash
-rake test
-```
+See [DEVELOPMENT.md](DEVELOPMENT.md) for detailed development setup instructions, testing guidelines, and contribution workflow.
 
 ## Contributing
 
