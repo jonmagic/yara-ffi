@@ -39,7 +39,7 @@ class ScannerTest < Minitest::Test
     scanner = Yara::Scanner.new
     scanner.add_rule(rule_one)
     scanner.compile
-    results = scanner.call("one two three four")
+    results = scanner.scan("one two three four")
     assert_predicate results.first, :match?
     scanner.close
   end
@@ -49,7 +49,7 @@ class ScannerTest < Minitest::Test
     scanner.add_rule(rule_one)
     scanner.add_rule(rule_two)
     scanner.compile
-    results = scanner.call("one two three four")
+    results = scanner.scan("one two three four")
     assert_equal [true, true], results.map(&:match?)
     scanner.close
   end
@@ -61,11 +61,11 @@ class ScannerTest < Minitest::Test
     scanner2 = Yara::Scanner.new
     scanner2.add_rule(rule_two)
     scanner2.compile
-    results1 = scanner1.call("one two three four")
+    results1 = scanner1.scan("one two three four")
     assert_predicate results1.first, :match?
     assert_equal 1, results1.size
     scanner1.close
-    results2 = scanner2.call("one two three four")
+    results2 = scanner2.scan("one two three four")
     assert_predicate results2.first, :match?
     assert_equal 1, results2.size
     scanner2.close

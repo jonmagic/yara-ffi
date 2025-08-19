@@ -47,10 +47,10 @@ module Yara
       @scanner_pointer = @scanner_pointer_holder.get_pointer(0)
     end
 
-    def call(test_string)
+    def scan(test_string)
       raise NotCompiledError, "Rules not compiled. Call compile() first." unless @scanner_pointer
 
-      results = []
+      results = ScanResults.new
 
       # Set up callback for matching rules
       callback = proc do |rule_ptr, user_data|
@@ -66,6 +66,8 @@ module Yara
           # Create a result with the rule source for metadata/string parsing
           result = ScanResult.new(rule_name, rule_ptr, true, @rule_source)
           results << result
+
+          yield result if block_given?
         end
       end
 
@@ -87,7 +89,7 @@ module Yara
         raise ScanError, "Scan failed: #{error_msg}"
       end
 
-      results
+      block_given? ? nil : results
     end
 
     def close
@@ -95,6 +97,21 @@ module Yara
       Yara::FFI.yrx_rules_destroy(@rules_pointer) if @rules_pointer
       @scanner_pointer = nil
       @rules_pointer = nil
+    end
+
+    def self.open(rule_string = nil, namespace: nil)
+      scanner = new
+      scanner.add_rule(rule_string, namespace: namespace) if rule_string
+
+      if block_given?
+        begin
+          yield scanner
+        ensure
+          scanner.close
+        end
+      else
+        scanner
+      end
     end
   end
 end
