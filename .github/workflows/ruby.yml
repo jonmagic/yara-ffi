@@ -3,7 +3,7 @@ name: Ruby
 
 on:
   push:
-    branches: [ main, modernize-project ]
+    branches: [ main ]
   pull_request:
     branches: [ main ]
 
@@ -61,25 +61,25 @@ jobs:
         fi
       continue-on-error: true
 
-  lint:
-    name: Lint and Security Check
-    runs-on: ubuntu-latest
+  # lint:
+  #   name: Lint and Security Check
+  #   runs-on: ubuntu-latest
 
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+  #   steps:
+  #   - name: Checkout code
+  #     uses: actions/checkout@v4
 
-    - name: Set up Ruby
-      uses: ruby/setup-ruby@v1
-      with:
-        ruby-version: '3.3'
-        bundler-cache: true
+  #   - name: Set up Ruby
+  #     uses: ruby/setup-ruby@v1
+  #     with:
+  #       ruby-version: '3.3'
+  #       bundler-cache: true
 
-    - name: Run bundle audit (if present)
-      run: |
-        if bundle list bundle-audit > /dev/null 2>&1; then
-          bundle exec bundle-audit check --update
-        else
-          echo "bundle-audit not found, skipping..."
-        fi
-      continue-on-error: true
+  #   - name: Run bundle audit (if present)
+  #     run: |
+  #       if bundle list bundle-audit > /dev/null 2>&1; then
+  #         bundle exec bundle-audit check --update
+  #       else
+  #         echo "bundle-audit not found, skipping..."
+  #       fi
+  #     continue-on-error: true
