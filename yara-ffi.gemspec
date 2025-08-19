@@ -12,7 +12,7 @@ Gem::Specification.new do |spec|
   spec.description = "Use YARA-X from Ruby via FFI bindings."
   spec.homepage = "https://github.com/jonmagic/yara-ffi"
   spec.license = "MIT"
-  spec.required_ruby_version = Gem::Requirement.new(">= 3.0.0")
+  spec.required_ruby_version = Gem::Requirement.new(">= 3.2.0")
 
   spec.metadata["homepage_uri"] = spec.homepage
   spec.metadata["source_code_uri"] = "https://github.com/jonmagic/yara-ffi"
