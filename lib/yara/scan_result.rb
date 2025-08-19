@@ -1,101 +1,83 @@
 module Yara
   class ScanResult
-    RULE_MATCHING     = 1
-    RULE_NOT_MATCHING = 2
+    attr_reader :rule_name, :rule_ptr
 
-    META_FLAGS_LAST_IN_RULE = 1
+    def initialize(rule_name, rule_ptr, is_match = true, rule_source = nil)
+      @rule_name = rule_name
+      @rule_ptr = rule_ptr
+      @is_match = is_match
+      @rule_source = rule_source
+      @rule_meta = {}
+      @rule_strings = {}
 
-    META_TYPE_INTEGER = 1
-    # META_TYPE_STRING  = 2
-    META_TYPE_BOOLEAN = 3
-
-    STRING_FLAGS_LAST_IN_RULE = 0
-
-    attr_reader :callback_type, :rule
-
-    def initialize(callback_type, rule, user_data)
-      @callback_type = callback_type
-      @rule = rule
-      @rule_meta = extract_rule_meta
-      @rule_strings = extract_rule_strings
-      @user_data_number = user_data[:number]
+      # For now, parse metadata and strings from source as a temporary solution
+      if @rule_source
+        parse_metadata_from_source
+        parse_strings_from_source
+      end
     end
 
-    attr_reader :rule_meta, :rule_strings, :user_data_number
-
-    def rule_name
-      @rule[:identifier]
-    end
-
-    def scan_complete?
-      callback_type == SCAN_FINISHED
-    end
-
-    def rule_outcome?
-      [RULE_MATCHING, RULE_NOT_MATCHING].include?(callback_type)
-    end
+    attr_reader :rule_meta, :rule_strings
 
     def match?
-      callback_type == RULE_MATCHING
+      @is_match
     end
 
-    private
+    def parse_metadata_from_source
+      return unless @rule_source
 
-    def extract_rule_meta
-      metas = {}
-      reading_metas = true
-      meta_index = 0
-      meta_pointer = @rule[:metas]
-      while reading_metas do
-        meta = YrMeta.new(meta_pointer + meta_index * YrMeta.size)
-        metas.merge!(meta_as_hash(meta))
-        flags = meta[:flags]
-        if flags == META_FLAGS_LAST_IN_RULE
-          reading_metas = false
-        else
-          meta_index += 1
+      # Extract metadata section more carefully
+      if @rule_source =~ /meta:\s*(.*?)(?:strings:|condition:)/m
+        meta_section = $1.strip
+
+        # Parse each line in the meta section
+        meta_section.split("\n").each do |line|
+          line = line.strip
+          next if line.empty?
+
+          if line =~ /^(\w+)\s*=\s*(.+)$/
+            key, value = $1, $2
+            parsed_value = parse_meta_value(value.strip)
+            @rule_meta[key.to_sym] = parsed_value
+          end
         end
       end
-      metas
     end
 
-    def extract_rule_strings
-      strings = {}
-      reading_strings = true
-      string_index = 0
-      string_pointer = @rule[:strings]
-      while reading_strings do
-        string = YrString.new(string_pointer + string_index * YrString.size)
-        string_length = string[:length]
-        flags = string[:flags]
-        if flags == STRING_FLAGS_LAST_IN_RULE
-          reading_strings = false
-        else
-          strings.merge!(string_as_hash(string)) unless string_length == 0
-          string_index += 1
+    def parse_strings_from_source
+      return unless @rule_source
+
+      # Extract strings section more carefully
+      if @rule_source =~ /strings:\s*(.*?)(?:condition:)/m
+        strings_section = $1.strip
+
+        # Parse each line in the strings section
+        strings_section.split("\n").each do |line|
+          line = line.strip
+          next if line.empty?
+
+          if line =~ /^(\$\w+)\s*=\s*(.+)$/
+            name, pattern = $1, $2
+            # Clean up the pattern (remove quotes, regex delimiters)
+            cleaned_pattern = pattern.strip.gsub(/^["\/]|["\/]$/, '')
+            @rule_strings[name.to_sym] = cleaned_pattern
+          end
         end
       end
-      strings
     end
 
-    def meta_as_hash(meta)
-      value = meta_value(meta[:string], meta[:integer], meta[:type])
-      { meta[:identifier].to_sym => value }
-    end
-
-    def string_as_hash(yr_string)
-      string_pointer = yr_string[:string]
-      string_identifier = yr_string[:identifier]
-      { string_identifier.to_sym => string_pointer.read_string }
-    end
-
-    def meta_value(string_value, int_value, type)
-      if type == META_TYPE_INTEGER
-        int_value
-      elsif type == META_TYPE_BOOLEAN
-        int_value == 1
+    def parse_meta_value(value)
+      case value
+      when /^".*"$/
+        value[1...-1] # Remove quotes
+      when /^true$/i
+        true
+      when /^false$/i
+        false
+      when /^\d+$/
+        value.to_i
       else
-        string_value
+        value
       end
     end
   end

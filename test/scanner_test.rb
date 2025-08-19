@@ -3,14 +3,6 @@
 require "test_helper"
 
 class ScannerTest < Minitest::Test
-  def setup
-    Yara.start
-  end
-
-  def teardown
-    Yara.stop
-  end
-
   def rule_one
     <<-RULE
       rule ExampleRuleOne

@@ -1,116 +1,69 @@
-require_relative "yr_meta"
-require_relative "yr_namespace"
-require_relative "yr_string"
-require_relative "yr_rule"
-require_relative "user_data"
-
 module Yara
-  # FFI bindings to libyara.
+  # FFI bindings to yara-x C API.
   module FFI
     extend ::FFI::Library
-    ffi_lib "libyara"
 
-    # int yr_initialize(void)
-    attach_function :yr_initialize, [], :int
+    # Try different library paths for yara-x C API
+    begin
+      ffi_lib "/usr/local/lib/aarch64-linux-gnu/libyara_x_capi.so"
+    rescue LoadError
+      begin
+        ffi_lib "yara_x_capi"
+      rescue LoadError
+        ffi_lib "libyara_x_capi"
+      end
+    end
 
-    # int yr_finalize(void)
-    attach_function :yr_finalize, [], :int
+    # Simple compilation function for basic use cases
+    # enum YRX_RESULT yrx_compile(const char *src, struct YRX_RULES **rules)
+    attach_function :yrx_compile, [:string, :pointer], :int
 
-    # Creates a new compiler and assigns a pointer to that compiler
-    # to the pointer passed into the method. To access the complier
-    # get the pointer from the pointer you passed in.
-    #
-    # Usage:
-    # > compiler_pointer = FFI::MemoryPointer.new(:pointer)
-    # > Yara::FFI.yr_compiler_create(compiler_pointer)
-    # > compiler_pointer = compiler_pointer.get_pointer(0)
-    #
-    # int yr_compiler_create(YR_COMPILER** compiler)
-    attach_function :yr_compiler_create, [
-      :pointer, # compiler_pointer*
-    ], :int
+    # const char* yrx_last_error(void)
+    attach_function :yrx_last_error, [], :string
 
-    # int yr_compiler_destroy(YR_COMPILER* compiler)
-    attach_function :yr_compiler_destroy, [
-      :pointer, # compiler_pointer
-    ], :void
+    # void yrx_rules_destroy(struct YRX_RULES *rules)
+    attach_function :yrx_rules_destroy, [:pointer], :void
 
-    # int yr_rules_destroy(YR_RULES* rules)
-    attach_function :yr_rules_destroy, [
-      :pointer, # rules_pointer
-    ], :void
+    # enum YRX_RESULT yrx_scanner_create(const struct YRX_RULES *rules, struct YRX_SCANNER **scanner)
+    attach_function :yrx_scanner_create, [:pointer, :pointer], :int
 
-    # void callback_function(
-    #   int error_level,
-    #   const char* file_name,
-    #   int line_number,
-    #   const YR_RULE* rule,
-    #   const char* message,
-    #   void* user_data)
-    callback :add_rule_error_callback, [
-      :int,       # error_level
-      :string,    # file_name
-      :int,       # line_number
-      YrRule.by_ref, # YrRule*
-      :string,    # message
-      :pointer,   # user_data_pointer
-    ], :void
+    # void yrx_scanner_destroy(struct YRX_SCANNER *scanner)
+    attach_function :yrx_scanner_destroy, [:pointer], :void
 
-    # void yr_compiler_set_callback(
-    #   YR_COMPILER* compiler,
-    #   YR_COMPILER_CALLBACK_FUNC callback,
-    #   void* user_data)
-    attach_function :yr_compiler_set_callback, [
-      :pointer,                 # compiler_pointer*
-      :add_rule_error_callback, # proc
-      :pointer,                 # user_data_pointer
-    ], :void
+    # Callback for matching rules
+    # typedef void (*YRX_ON_MATCHING_RULE)(const struct YRX_RULE *rule, void *user_data)
+    callback :matching_rule_callback, [:pointer, :pointer], :void
 
-    # int yr_compiler_add_string(
-    #   YR_COMPILER* compiler,
-    #   const char* string,
-    #   const char* namespace_)
-    attach_function :yr_compiler_add_string, [
-      :pointer,   # compiler_pointer*
-      :string,    # rule string
-      :string,    # namespace
-    ], :int
+    # enum YRX_RESULT yrx_scanner_on_matching_rule(struct YRX_SCANNER *scanner, YRX_ON_MATCHING_RULE callback, void *user_data)
+    attach_function :yrx_scanner_on_matching_rule, [:pointer, :matching_rule_callback, :pointer], :int
 
-    # int yr_compiler_get_rules(
-    #   YR_COMPILER* compiler,
-    #   YR_RULES** rules)
-    attach_function :yr_compiler_get_rules, [
-      :pointer, # compiler_pointer*
-      :pointer, # rules_pointer*
-    ], :int
+    # enum YRX_RESULT yrx_scanner_scan(struct YRX_SCANNER *scanner, const uint8_t *data, size_t len)
+    attach_function :yrx_scanner_scan, [:pointer, :pointer, :size_t], :int
 
-    # int callback_function(
-    #   int message,
-    #   void* message_data,
-    #   void* user_data)
-    callback :scan_callback, [
-      :pointer,       # YR_SCAN_CONTEXT*
-      :int,           # callback_type
-      YrRule.ptr,     # rule
-      UserData.ptr,   # user_data
-    ], :int
+    # Rule information functions
+    # enum YRX_RESULT yrx_rule_identifier(const struct YRX_RULE *rule, const uint8_t **ident, size_t *len)
+    attach_function :yrx_rule_identifier, [:pointer, :pointer, :pointer], :int
 
-    # int yr_rules_scan_mem(
-    #   YR_RULES* rules,
-    #   const uint8_t* buffer,
-    #   size_t buffer_size,
-    #   int flags,
-    #   YR_CALLBACK_FUNC callback,
-    #   void* user_data,
-    #   int timeout)
-    attach_function :yr_rules_scan_mem, [
-      :pointer,       # rules_pointer*
-      :pointer,       # buffer (aka test subject)
-      :size_t,        # buffer size (String#bytesize)
-      :int,           # flags
-      :scan_callback, # proc
-      :pointer,       # user_data_pointer
-      :int,           # timeout in seconds
-    ], :int
+    # Metadata iteration
+    # enum YRX_RESULT yrx_rule_iter_metadata(const struct YRX_RULE *rule, YRX_METADATA_CALLBACK callback, void *user_data)
+    callback :metadata_callback, [:pointer, :pointer], :void
+    attach_function :yrx_rule_iter_metadata, [:pointer, :metadata_callback, :pointer], :int
+
+    # Pattern iteration
+    # enum YRX_RESULT yrx_rule_iter_patterns(const struct YRX_RULE *rule, YRX_PATTERN_CALLBACK callback, void *user_data)
+    callback :pattern_callback, [:pointer, :pointer], :void
+    attach_function :yrx_rule_iter_patterns, [:pointer, :pattern_callback, :pointer], :int
+
+    # Pattern information
+    # enum YRX_RESULT yrx_pattern_identifier(const struct YRX_PATTERN *pattern, const uint8_t **ident, size_t *len)
+    attach_function :yrx_pattern_identifier, [:pointer, :pointer, :pointer], :int
+
+    # Result codes
+    YRX_SUCCESS = 0
+    YRX_SYNTAX_ERROR = 1
+    YRX_VARIABLE_ERROR = 2
+    YRX_SCAN_ERROR = 3
+    YRX_SCAN_TIMEOUT = 4
+    YRX_INVALID_ARGUMENT = 5
   end
 end
