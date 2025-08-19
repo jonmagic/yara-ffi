@@ -10,9 +10,16 @@ COPY . ./
 RUN gem install bundler:2.2.15 \
   && bundle install
 
-# Download and install YARA-X v1.5.0 release (Linux x86_64)
-RUN curl -L "https://github.com/VirusTotal/yara-x/releases/download/v1.5.0/yara-x-v1.5.0-x86_64-unknown-linux-gnu.gz" -o /usr/local/bin/yara-x.gz \
-  && gunzip /usr/local/bin/yara-x.gz \
-  && chmod +x /usr/local/bin/yara-x
+# Install Rust and cargo-c for building YARA-X C API
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y \
+  && . $HOME/.cargo/env \
+  && cargo install cargo-c
+
+# Build and install YARA-X C API library
+RUN . $HOME/.cargo/env \
+  && git clone --depth 1 --branch v1.5.0 https://github.com/VirusTotal/yara-x.git /tmp/yara-x \
+  && cd /tmp/yara-x \
+  && cargo cinstall -p yara-x-capi --release \
+  && rm -rf /tmp/yara-x
 
 ENV PATH="/usr/local/bin:$PATH"
