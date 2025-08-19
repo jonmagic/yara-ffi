@@ -8,11 +8,11 @@ Gem::Specification.new do |spec|
   spec.authors = ["Jonathan Hoyt"]
   spec.email = ["jonmagic@gmail.com"]
 
-  spec.summary = "A Ruby API to libyara."
-  spec.description = "Use libyara from Ruby via ffi bindings."
+  spec.summary = "A Ruby API to YARA-X."
+  spec.description = "Use YARA-X from Ruby via FFI bindings."
   spec.homepage = "https://github.com/jonmagic/yara-ffi"
   spec.license = "MIT"
-  spec.required_ruby_version = Gem::Requirement.new(">= 2.4.0")
+  spec.required_ruby_version = Gem::Requirement.new(">= 3.0.0")
 
   spec.metadata["homepage_uri"] = spec.homepage
   spec.metadata["source_code_uri"] = "https://github.com/jonmagic/yara-ffi"
