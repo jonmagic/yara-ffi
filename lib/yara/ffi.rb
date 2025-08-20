@@ -225,6 +225,23 @@ module Yara
     # Build compiler into rules: struct YRX_RULES *yrx_compiler_build(struct YRX_COMPILER *compiler)
     attach_function :yrx_compiler_build, [:pointer], :pointer
 
+    # YRX_BUFFER utilities
+    # C Signature: void yrx_buffer_destroy(struct YRX_BUFFER *buf)
+    attach_function :yrx_buffer_destroy, [:pointer], :void
+
+    # Compiler diagnostics as JSON
+    # C Signature: enum YRX_RESULT yrx_compiler_errors_json(struct YRX_COMPILER *compiler, struct YRX_BUFFER **buf)
+    attach_function :yrx_compiler_errors_json, [:pointer, :pointer], :int
+
+    # C Signature: enum YRX_RESULT yrx_compiler_warnings_json(struct YRX_COMPILER *compiler, struct YRX_BUFFER **buf)
+    attach_function :yrx_compiler_warnings_json, [:pointer, :pointer], :int
+
+    # Struct mapping for YRX_BUFFER
+    class YRX_BUFFER < ::FFI::Struct
+      layout :data, :pointer,
+             :length, :size_t
+    end
+
     # Public: Extract the identifier (name) from a rule object.
     #
     # This function retrieves the rule name from a YRX_RULE pointer, typically

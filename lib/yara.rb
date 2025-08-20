@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "ffi"
+require "json"
 require "pry"
 require_relative "yara/ffi"
 require_relative "yara/scan_result"

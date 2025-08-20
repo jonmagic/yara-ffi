@@ -47,4 +47,31 @@ class CompilerTest < Minitest::Test
     scanner.close
     compiler.destroy
   end
+
+  def test_compiler_errors_json_for_invalid_source
+    compiler = Yara::Compiler.new
+    # Intentionally invalid source to provoke a syntax error
+    begin
+      compiler.add_source("rule bad { condition: this_is_not_defined }")
+      # If add_source succeeds unexpectedly, attempt to build which should fail
+      begin
+        compiler.build
+      rescue Yara::Compiler::CompileError
+        # fallthrough to diagnostics
+      end
+    rescue Yara::Compiler::CompileError
+      # add_source reported an error; continue to diagnostics
+    ensure
+      # Now ask for structured errors regardless of where the error occurred
+      begin
+        errors = compiler.errors_json
+        assert_kind_of Array, errors
+        refute_empty errors
+      rescue Yara::Compiler::CompileError => e
+        flunk "errors_json raised unexpected CompileError: #{e.message}"
+      ensure
+        compiler.destroy
+      end
+    end
+  end
 end

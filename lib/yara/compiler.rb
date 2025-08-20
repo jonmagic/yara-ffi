@@ -75,6 +75,44 @@ module Yara
       rules_ptr
     end
 
+    # Return compilation errors as a parsed JSON object (Array of error objects).
+    # This uses yrx_compiler_errors_json which returns a YRX_BUFFER containing
+    # the JSON serialization. The buffer is destroyed after being converted.
+    def errors_json
+      buf_ptr_holder = ::FFI::MemoryPointer.new(:pointer)
+      result = Yara::FFI.yrx_compiler_errors_json(@compiler, buf_ptr_holder)
+      if result != Yara::FFI::YRX_SUCCESS
+        raise CompileError, "Failed to get errors JSON: #{Yara::FFI.yrx_last_error}"
+      end
+
+      buf_ptr = buf_ptr_holder.get_pointer(0)
+      buffer = Yara::FFI::YRX_BUFFER.new(buf_ptr)
+      data_ptr = buffer[:data]
+      length = buffer[:length]
+      json_str = data_ptr.read_string_length(length)
+      Yara::FFI.yrx_buffer_destroy(buf_ptr)
+
+      JSON.parse(json_str)
+    end
+
+    # Return compilation warnings as parsed JSON (Array of warning objects).
+    def warnings_json
+      buf_ptr_holder = ::FFI::MemoryPointer.new(:pointer)
+      result = Yara::FFI.yrx_compiler_warnings_json(@compiler, buf_ptr_holder)
+      if result != Yara::FFI::YRX_SUCCESS
+        raise CompileError, "Failed to get warnings JSON: #{Yara::FFI.yrx_last_error}"
+      end
+
+      buf_ptr = buf_ptr_holder.get_pointer(0)
+      buffer = Yara::FFI::YRX_BUFFER.new(buf_ptr)
+      data_ptr = buffer[:data]
+      length = buffer[:length]
+      json_str = data_ptr.read_string_length(length)
+      Yara::FFI.yrx_buffer_destroy(buf_ptr)
+
+      JSON.parse(json_str)
+    end
+
     def destroy
       Yara::FFI.yrx_compiler_destroy(@compiler) if @compiler
       @compiler = nil
