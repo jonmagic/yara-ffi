@@ -63,6 +63,30 @@ module Yara
       @rule_source = ""
     end
 
+    # Create a Scanner instance from a pre-built YRX_RULES pointer.
+    #
+    # rules_ptr - FFI::Pointer returned by Compiler#build (YRX_RULES*)
+    # owns_rules - Boolean indicating whether this Scanner should destroy
+    #               the rules when closed. Default: false (caller destroys).
+    #
+    # Returns a Scanner instance.
+    def self.from_rules(rules_ptr, owns_rules: false)
+      scanner = new
+      scanner.instance_variable_set(:@rules_pointer, rules_ptr)
+      scanner.instance_variable_set(:@owns_rules, owns_rules)
+
+      # Create underlying scanner
+      scanner_holder = ::FFI::MemoryPointer.new(:pointer)
+      result = Yara::FFI.yrx_scanner_create(rules_ptr, scanner_holder)
+      if result != Yara::FFI::YRX_SUCCESS
+        error_msg = Yara::FFI.yrx_last_error
+        raise CompilationError, "Failed to create scanner from rules: #{error_msg}"
+      end
+
+      scanner.instance_variable_set(:@scanner_pointer, scanner_holder.get_pointer(0))
+      scanner
+    end
+
     # Public: Add a YARA rule to the scanner for later compilation.
     #
     # Rules are accumulated as source code and compiled together when compile()
@@ -286,7 +310,9 @@ module Yara
     # Returns nothing.
     def close
       Yara::FFI.yrx_scanner_destroy(@scanner_pointer) if @scanner_pointer
-      Yara::FFI.yrx_rules_destroy(@rules_pointer) if @rules_pointer
+      if @rules_pointer && instance_variable_defined?(:@owns_rules) && @owns_rules
+        Yara::FFI.yrx_rules_destroy(@rules_pointer)
+      end
       @scanner_pointer = nil
       @rules_pointer = nil
     end

@@ -32,4 +32,19 @@ class CompilerTest < Minitest::Test
     Yara::FFI.yrx_rules_destroy(rules_ptr)
     compiler.destroy
   end
+
+  def test_scanner_from_rules_build_and_scan
+    compiler = Yara::Compiler.new
+    compiler.define_global_int("RETRIES", 3)
+    compiler.add_source(simple_rule_with_global)
+    rules_ptr = compiler.build
+
+    scanner = Yara::Scanner.from_rules(rules_ptr, owns_rules: true)
+    # No explicit compile needed; scanner is ready to use
+    results = scanner.scan("")
+
+    # Clean up via Scanner.close (owns_rules: true will destroy rules)
+    scanner.close
+    compiler.destroy
+  end
 end
