@@ -322,6 +322,72 @@ module Yara
       nil
     end
 
+    # Public: Set multiple global variables at once from a hash.
+    #
+    # This convenience method allows setting multiple global variables in a single
+    # call, automatically detecting the appropriate type for each value. Supports
+    # String, Boolean (true/false), Integer, and Float values.
+    #
+    # globals - A Hash where keys are global variable names (String) and values
+    #           are the global variable values (String, Boolean, Integer, or Float)
+    # strict  - A Boolean indicating error handling mode:
+    #           * true: raise ScanError on any failure (default)
+    #           * false: ignore errors and continue setting other globals
+    #
+    # Examples
+    #
+    #   # Set multiple globals with strict error handling
+    #   scanner.set_globals({
+    #     "ENV" => "production",
+    #     "DEBUG" => false,
+    #     "RETRIES" => 3,
+    #     "THRESHOLD" => 0.95
+    #   })
+    #
+    #   # Set globals with lenient error handling
+    #   scanner.set_globals({
+    #     "DEFINED_VAR" => "value",
+    #     "UNDEFINED_VAR" => "ignored"  # Won't raise if undefined
+    #   }, strict: false)
+    #
+    # Returns nothing.
+    # Raises NotCompiledError if scanner not initialized.
+    # Raises ScanError on any global setting failure when strict=true.
+    def set_globals(globals, strict: true)
+      raise NotCompiledError, "Scanner not initialized" unless @scanner_pointer
+
+      globals.each do |ident, value|
+        begin
+          case value
+          when String
+            set_global_str(ident, value)
+          when TrueClass, FalseClass
+            set_global_bool(ident, value)
+          when Integer
+            set_global_int(ident, value)
+          when Float
+            set_global_float(ident, value)
+          else
+            error_msg = "Unsupported global variable type for '#{ident}': #{value.class}"
+            if strict
+              raise ScanError, error_msg
+            else
+              # In non-strict mode, skip unsupported types silently
+              next
+            end
+          end
+        rescue ScanError => e
+          if strict
+            raise e
+          else
+            # In non-strict mode, continue with remaining globals
+            next
+          end
+        end
+      end
+      nil
+    end
+
     # Public: Free all resources associated with this scanner.
     #
     # This method releases memory allocated by YARA-X for the compiled rules
