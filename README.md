@@ -7,46 +7,21 @@ A Ruby library for using [YARA-X](https://virustotal.github.io/yara-x/) via FFI 
 - Ruby 3.0 or later
 - YARA-X C API library (`libyara_x_capi`) installed on your system
 
-## What's New
+## Major Features
 
-Since version 4.0.0, yara-ffi has been significantly enhanced with advanced YARA-X features:
+**🔍 Pattern Matching Analysis**: Extract detailed pattern match information with exact offsets, lengths, and matched data - perfect for forensic analysis.
 
-### 🔍 **Pattern Matching Analysis** (NEW)
-- Detailed pattern match information with exact offsets and lengths
-- Extract matched data from specific locations
-- Analyze overlapping and repeated pattern matches
-- Perfect for forensic analysis and data extraction
+**🛠️ Advanced Rule Compilation**: Use the `Yara::Compiler` class for complex scenarios with global variables, structured error reporting, and multiple rule sources.
 
-### 🛠️ **Advanced Rule Compilation** (NEW)
-- `Yara::Compiler` class for complex compilation scenarios
-- Global variable definition at compile time
-- Structured error and warning reporting via JSON
-- Support for multiple rule sources with origin tracking
+**💾 Rule Serialization**: Compile rules once, serialize for persistence or transport, then deserialize for instant scanning - eliminating compilation overhead.
 
-### 💾 **Rule Serialization** (NEW)
-- Compile rules once, serialize for persistence or transport
-- Deserialize pre-compiled rules for instant scanning
-- Eliminate repeated compilation overhead in production
+**🏷️ Metadata & Tags**: Full access to rule metadata with type safety and tag-based rule categorization and filtering.
 
-### 🏷️ **Metadata & Tags Support** (NEW)
-- Full access to rule metadata with proper type handling
-- Tag-based rule categorization and filtering
-- Type-safe metadata access methods
+**🌐 Global Variables**: Set string, boolean, integer, and float globals at runtime to customize rule behavior dynamically.
 
-### 🌐 **Global Variables** (NEW)
-- Set string, boolean, integer, and float globals
-- Bulk global variable setting with error handling modes
-- Runtime rule behavior customization
+**📁 Namespace Support**: Organize rules logically, avoid naming conflicts, and access qualified rule names in large rule sets.
 
-### 📁 **Namespace Support** (NEW)
-- Organize rules into logical namespaces
-- Avoid naming conflicts in large rule sets
-- Qualified rule name access
-
-### ⚡ **Performance Enhancements** (NEW)
-- Configurable scan timeouts to prevent runaway scans
-- Efficient resource management with automatic cleanup
-- Parallel scanning support with serialized rules
+**⚡ Performance**: Configurable scan timeouts, efficient resource management with automatic cleanup, and parallel scanning support.
 
 ## Installation
 
@@ -64,12 +39,12 @@ Or install it yourself as:
 
     $ gem install yara-ffi
 
-## Usage
+## Quick Start
 
 ```ruby
 require 'yara'
 
-# Quick test
+# Simple test
 results = Yara.test(rule_string, data)
 puts "Matched: #{results.first.rule_name}" if results.first&.match?
 
@@ -80,27 +55,15 @@ Yara::Scanner.open(rule) do |scanner|
 end
 ```
 
-**For complete usage examples and API documentation, see [USAGE.md](USAGE.md).**
+**📖 For comprehensive usage examples, advanced features, and API documentation, see [USAGE.md](USAGE.md).**
 
-## Key Features
-
-This gem provides comprehensive YARA-X functionality including:
-
-- **Pattern Matching Analysis**: Detailed pattern match information with exact offsets and lengths
-- **Rule Compilation & Management**: Advanced compilation with global variables and error diagnostics
-- **Rule Serialization**: Compile once, use many times across processes
-- **Metadata & Tags**: Full access to rule metadata and tag-based categorization
-- **Namespaces**: Organize rules logically and avoid naming conflicts
-- **Global Variables**: Dynamic rule behavior with runtime variable setting
-- **Performance Optimization**: Timeouts, efficient resource usage, and parallel scanning
-
-## API Reference
+## API Overview
 
 **Core Classes**: `Yara`, `Yara::Scanner`, `Yara::Compiler`, `Yara::ScanResult`, `Yara::ScanResults`, `Yara::PatternMatch`
 
 **Key Methods**: `Yara.test()`, `Yara.scan()`, `Scanner.open()`, `Scanner#scan()`, `ScanResult#pattern_matches`
 
-For detailed API documentation and examples, see **[USAGE.md](USAGE.md)**.
+**📖 For detailed API documentation, examples, and advanced usage patterns, see [USAGE.md](USAGE.md).**
 
 ## Installing YARA-X
 
@@ -116,12 +79,8 @@ See [DEVELOPMENT.md](DEVELOPMENT.md) for detailed development setup instructions
 
 ## Contributing
 
-Bug reports and pull requests are welcome on GitHub at https://github.com/jonmagic/yara-ffi. This project is intended to be a safe, welcoming space for collaboration, and contributors are expected to adhere to the [code of conduct](https://github.com/jonmagic/yara-ffi/blob/main/CODE_OF_CONDUCT.md).
+Bug reports and pull requests are welcome on GitHub at https://github.com/jonmagic/yara-ffi. This project is intended to be a safe, welcoming space for collaboration, and contributors are expected to adhere to the [code of conduct](CODE_OF_CONDUCT.md).
 
 ## License
 
-The gem is available as open source under the terms of the [MIT License](https://opensource.org/licenses/MIT).
-
-## Code of Conduct
-
-Everyone interacting in the yara-ffi project's codebases, issue trackers, chat rooms and mailing lists is expected to follow the [code of conduct](https://github.com/jonmagic/yara-ffi/blob/main/CODE_OF_CONDUCT.md).
+The gem is available as open source under the terms of the [MIT License](LICENSE.txt).
