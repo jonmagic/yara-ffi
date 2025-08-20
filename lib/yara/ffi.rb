@@ -256,6 +256,21 @@ module Yara
              :length, :size_t
     end
 
+    # Struct mapping for YRX_METADATA
+    # Note: The value field is a union. We'll use a simple approach
+    # and access the value as a pointer, then interpret based on type.
+    class YRX_METADATA < ::FFI::Struct
+      layout :identifier, :pointer,
+             :value_type, :int,
+             :value, [:char, 16]  # Union represented as byte array (largest possible union member)
+    end
+
+    # Struct mapping for YRX_METADATA_BYTES
+    class YRX_METADATA_BYTES < ::FFI::Struct
+      layout :length, :size_t,
+             :data, :pointer
+    end
+
     # Public: Extract the identifier (name) from a rule object.
     #
     # This function retrieves the rule name from a YRX_RULE pointer, typically
@@ -367,6 +382,17 @@ module Yara
     # C Signature: typedef void (*YRX_MATCH_CALLBACK)(const struct YRX_MATCH *match, void *user_data)
     callback :match_callback, [:pointer, :pointer], :void
 
+    # Internal: Callback function type for tag iteration.
+    #
+    # This callback is invoked for each tag during rule tag iteration.
+    # The callback receives a pointer to the tag string and user data.
+    #
+    # tag       - A Pointer to null-terminated string representing the tag
+    # user_data - A Pointer to optional user-provided data
+    #
+    # C Signature: typedef void (*YRX_TAG_CALLBACK)(const char *tag, void *user_data)
+    callback :tag_callback, [:pointer, :pointer], :void
+
     # Public: Iterate through all matches for a specific pattern.
     #
     # This function calls the provided callback for each match found for the
@@ -385,6 +411,44 @@ module Yara
     # Returns an Integer result code (YRX_SUCCESS on success).
     # C Signature: enum YRX_RESULT yrx_pattern_iter_matches(const struct YRX_PATTERN *pattern, YRX_MATCH_CALLBACK callback, void *user_data)
     attach_function :yrx_pattern_iter_matches, [:pointer, :match_callback, :pointer], :int
+
+    # Public: Extract the namespace from a rule object.
+    #
+    # This function retrieves the rule namespace from a YRX_RULE pointer.
+    # The namespace is returned as a pointer and length rather than a
+    # null-terminated string.
+    #
+    # rule - A Pointer to the YRX_RULE structure
+    # ns   - A FFI::MemoryPointer that will receive the namespace pointer
+    # len  - A FFI::MemoryPointer that will receive the namespace length
+    #
+    # Examples
+    #
+    #   ns_ptr = FFI::MemoryPointer.new(:pointer)
+    #   len_ptr = FFI::MemoryPointer.new(:size_t)
+    #   result = Yara::FFI.yrx_rule_namespace(rule_ptr, ns_ptr, len_ptr)
+    #
+    # Returns an Integer result code (YRX_SUCCESS on success).
+    # C Signature: enum YRX_RESULT yrx_rule_namespace(const struct YRX_RULE *rule, const uint8_t **ns, size_t *len)
+    attach_function :yrx_rule_namespace, [:pointer, :pointer, :pointer], :int
+
+    # Public: Iterate through all tags in a rule.
+    #
+    # This function calls the provided callback for each tag defined
+    # in the rule. Tags are used for categorizing and organizing rules.
+    #
+    # rule      - A Pointer to the YRX_RULE structure
+    # callback  - A Proc matching the tag_callback signature
+    # user_data - A Pointer to optional data passed to callback (can be nil)
+    #
+    # Examples
+    #
+    #   callback = proc { |tag_ptr, user_data| puts "Found tag: #{tag_ptr.read_string}" }
+    #   result = Yara::FFI.yrx_rule_iter_tags(rule_ptr, callback, nil)
+    #
+    # Returns an Integer result code (YRX_SUCCESS on success).
+    # C Signature: enum YRX_RESULT yrx_rule_iter_tags(const struct YRX_RULE *rule, YRX_TAG_CALLBACK callback, void *user_data)
+    attach_function :yrx_rule_iter_tags, [:pointer, :tag_callback, :pointer], :int
 
     # Public: YARA-X result codes for operation status.
     #
@@ -429,5 +493,13 @@ module Yara
 
     # Public: Bytes metadata value.
     YRX_METADATA_TYPE_BYTES = 4
+
+    # Public: Alternative naming following YARA-X C API documentation.
+    # Maps to the same values as above for compatibility.
+    YRX_I64 = 0
+    YRX_F64 = 1
+    YRX_BOOLEAN = 2
+    YRX_STRING = 3
+    YRX_BYTES = 4
   end
 end

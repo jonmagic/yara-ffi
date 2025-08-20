@@ -45,6 +45,20 @@ module Yara
     # matched in the scanned data, including offset and length information.
     attr_reader :pattern_matches
 
+    # Public: Array of rule tags for categorization and organization.
+    #
+    # Tags are labels attached to rules that help categorize and organize
+    # rule sets. Common tags include malware family names, platforms,
+    # or behavior categories.
+    attr_reader :tags
+
+    # Public: Namespace of the rule, if defined.
+    #
+    # YARA rules can be organized into namespaces to avoid naming conflicts
+    # and provide logical grouping. This contains the namespace name or
+    # nil if the rule is in the default namespace.
+    attr_reader :namespace
+
     # Public: Initialize a new ScanResult.
     #
     # This constructor is typically called internally by Scanner when a rule
@@ -71,16 +85,22 @@ module Yara
       @rule_meta = {}
       @rule_strings = {}
       @pattern_matches = {}
+      @tags = []
+      @namespace = nil
 
-      # For now, parse metadata and strings from source as a temporary solution
+      # Extract information using YARA-X API when rule pointer is available
+      if @rule_ptr && !@rule_ptr.null?
+        # TODO: Re-enable structured metadata after fixing union handling
+        # extract_structured_metadata
+        extract_tags
+        extract_namespace
+        extract_pattern_matches
+      end
+
+      # Parse metadata and strings from source (primary method for now)
       if @rule_source
         parse_metadata_from_source
         parse_strings_from_source
-      end
-
-      # Extract detailed pattern match information using YARA-X API
-      if @rule_ptr && !@rule_ptr.null?
-        extract_pattern_matches
       end
     end
 
@@ -166,6 +186,137 @@ module Yara
       matches_for_pattern(pattern_name).any?
     end
 
+    # Public: Check if the rule has a specific tag.
+    #
+    # This method checks whether the rule includes the specified tag.
+    # Tag comparison is case-sensitive.
+    #
+    # tag - A String representing the tag to check for
+    #
+    # Examples
+    #
+    #   if result.has_tag?("malware")
+    #     puts "This rule is tagged as malware"
+    #   end
+    #
+    # Returns a Boolean indicating whether the rule has the tag.
+    def has_tag?(tag)
+      return false if tag.nil?
+      @tags.include?(tag.to_s)
+    end
+
+    # Public: Get the qualified rule name including namespace.
+    #
+    # This method returns the fully qualified rule name, including the
+    # namespace if present. For rules in the default namespace, this
+    # is the same as rule_name.
+    #
+    # Examples
+    #
+    #   result.qualified_name  # => "malware.suspicious_behavior"
+    #   # or just "rule_name" if no namespace
+    #
+    # Returns a String containing the qualified rule name.
+    def qualified_name
+      if @namespace && !@namespace.empty?
+        "#{@namespace}.#{@rule_name}"
+      else
+        @rule_name
+      end
+    end
+
+    # Public: Get a typed metadata value by key.
+    #
+    # This method provides type-safe access to metadata values, returning
+    # the actual Ruby type (String, Integer, Boolean, Float) instead of
+    # requiring manual type conversion.
+    #
+    # key - A String or Symbol identifying the metadata key
+    #
+    # Examples
+    #
+    #   result.metadata_value(:severity)    # => 8 (Integer)
+    #   result.metadata_value("author")     # => "Security Team" (String)
+    #   result.metadata_value(:active)      # => true (Boolean)
+    #
+    # Returns the metadata value in its native Ruby type, or nil if not found.
+    def metadata_value(key)
+      return nil if key.nil?
+      @rule_meta[key.to_sym]
+    end
+
+    # Public: Get an integer metadata value by key.
+    #
+    # This method provides a convenient way to access integer metadata
+    # with automatic type checking.
+    #
+    # key - A String or Symbol identifying the metadata key
+    #
+    # Examples
+    #
+    #   result.metadata_int(:severity)   # => 8
+    #   result.metadata_int(:version)    # => 2
+    #
+    # Returns an Integer value, or nil if key doesn't exist or isn't an integer.
+    def metadata_int(key)
+      value = metadata_value(key)
+      value.is_a?(Integer) ? value : nil
+    end
+
+    # Public: Get a string metadata value by key.
+    #
+    # This method provides a convenient way to access string metadata
+    # with automatic type checking.
+    #
+    # key - A String or Symbol identifying the metadata key
+    #
+    # Examples
+    #
+    #   result.metadata_string(:author)      # => "Security Team"
+    #   result.metadata_string(:description) # => "Detects malware"
+    #
+    # Returns a String value, or nil if key doesn't exist or isn't a string.
+    def metadata_string(key)
+      value = metadata_value(key)
+      value.is_a?(String) ? value : nil
+    end
+
+    # Public: Get a boolean metadata value by key.
+    #
+    # This method provides a convenient way to access boolean metadata
+    # with automatic type checking.
+    #
+    # key - A String or Symbol identifying the metadata key
+    #
+    # Examples
+    #
+    #   result.metadata_bool(:active)  # => true
+    #   result.metadata_bool(:enabled) # => false
+    #
+    # Returns a Boolean value, or nil if key doesn't exist or isn't a boolean.
+    def metadata_bool(key)
+      value = metadata_value(key)
+      [true, false].include?(value) ? value : nil
+    end
+
+    # Public: Get a float metadata value by key.
+    #
+    # This method provides a convenient way to access float metadata
+    # with automatic type checking.
+    #
+    # key - A String or Symbol identifying the metadata key
+    #
+    # Examples
+    #
+    #   result.metadata_float(:confidence) # => 0.95
+    #   result.metadata_float(:ratio)      # => 3.14
+    #
+    # Returns a Float value, or nil if key doesn't exist or isn't a float.
+    def metadata_float(key)
+      value = metadata_value(key)
+      value.is_a?(Float) ? value : nil
+    end
+
     # Internal: Extract detailed pattern match information using YARA-X API.
     #
     # This method uses the YARA-X C API to iterate through all patterns defined
@@ -215,6 +366,125 @@ module Yara
 
       # Iterate through all patterns in the rule
       Yara::FFI.yrx_rule_iter_patterns(@rule_ptr, pattern_callback, nil)
+    end
+
+    # Internal: Extract structured metadata using YARA-X API.
+    #
+    # This method uses the YARA-X C API to access rule metadata with proper
+    # type information, replacing the regex-based parsing approach with
+    # reliable structured access.
+    #
+    # Returns nothing (modifies @rule_meta hash).
+    def extract_structured_metadata
+      return unless @rule_ptr && !@rule_ptr.null?
+
+      # Callback to process each metadata entry
+      metadata_callback = proc do |metadata_ptr, user_data|
+        next if metadata_ptr.nil? || metadata_ptr.null?
+
+        begin
+          # Extract metadata using FFI struct
+          metadata = Yara::FFI::YRX_METADATA.new(metadata_ptr)
+          identifier_ptr = metadata[:identifier]
+          next if identifier_ptr.nil? || identifier_ptr.null?
+
+          identifier = identifier_ptr.read_string.to_sym
+          value_type = metadata[:value_type]
+
+          # Extract value based on type using union access
+          # Note: We need to read from the value union at the correct offset
+          value_ptr = metadata.pointer + metadata.offset_of(:value)
+
+          case value_type
+          when Yara::FFI::YRX_I64
+            value = value_ptr.read_long_long
+          when Yara::FFI::YRX_F64
+            value = value_ptr.read_double
+          when Yara::FFI::YRX_BOOLEAN
+            value = value_ptr.read_char != 0
+          when Yara::FFI::YRX_STRING
+            string_ptr_ptr = value_ptr.read_pointer
+            value = string_ptr_ptr.nil? || string_ptr_ptr.null? ? "" : string_ptr_ptr.read_string
+          when Yara::FFI::YRX_BYTES
+            bytes_ptr = value_ptr.read_pointer
+            if bytes_ptr.nil? || bytes_ptr.null?
+              value = ""
+            else
+              # Read the YRX_METADATA_BYTES struct
+              length = bytes_ptr.read_size_t
+              data_ptr = bytes_ptr.read_pointer(8) # offset past the length field
+              value = length > 0 && !data_ptr.null? ? data_ptr.read_string(length) : ""
+            end
+          else
+            value = nil  # Unknown type
+          end
+
+          @rule_meta[identifier] = value unless value.nil?
+        rescue
+          # Skip problematic metadata entries rather than failing entirely
+          # This ensures partial extraction works even if some entries have issues
+        end
+      end
+
+      # Iterate through all metadata entries
+      Yara::FFI.yrx_rule_iter_metadata(@rule_ptr, metadata_callback, nil)
+    rescue
+      # If structured metadata extraction fails, fall back to source parsing
+      # This ensures backwards compatibility
+    end
+
+    # Internal: Extract rule tags using YARA-X API.
+    #
+    # This method uses the YARA-X C API to access all tags defined for the rule.
+    # Tags provide categorization and organization capabilities for rule sets.
+    #
+    # Returns nothing (modifies @tags array).
+    def extract_tags
+      return unless @rule_ptr && !@rule_ptr.null?
+
+      # Callback to process each tag
+      tag_callback = proc do |tag_ptr, user_data|
+        next if tag_ptr.nil? || tag_ptr.null?
+
+        begin
+          tag = tag_ptr.read_string
+          @tags << tag unless tag.empty?
+        rescue
+          # Skip problematic tags rather than failing entirely
+        end
+      end
+
+      # Iterate through all tags
+      Yara::FFI.yrx_rule_iter_tags(@rule_ptr, tag_callback, nil)
+
+      # If iteration fails, ensure @tags is at least an empty array
+      @tags ||= []
+    end
+
+    # Internal: Extract rule namespace using YARA-X API.
+    #
+    # This method uses the YARA-X C API to access the namespace that contains
+    # this rule. Namespaces provide logical grouping and avoid naming conflicts.
+    #
+    # Returns nothing (modifies @namespace attribute).
+    def extract_namespace
+      return unless @rule_ptr && !@rule_ptr.null?
+
+      # Get namespace information
+      ns_ptr = ::FFI::MemoryPointer.new(:pointer)
+      len_ptr = ::FFI::MemoryPointer.new(:size_t)
+
+      result = Yara::FFI.yrx_rule_namespace(@rule_ptr, ns_ptr, len_ptr)
+      return unless result == Yara::FFI::YRX_SUCCESS
+
+      namespace_ptr = ns_ptr.get_pointer(0)
+      return if namespace_ptr.nil? || namespace_ptr.null?
+
+      namespace_len = len_ptr.get_ulong(0)
+      @namespace = namespace_len > 0 ? namespace_ptr.read_string(namespace_len) : nil
+    rescue
+      # Set to nil if extraction fails
+      @namespace = nil
     end
 
     # Internal: Parse metadata from the original rule source code.
