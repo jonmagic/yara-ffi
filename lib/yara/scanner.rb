@@ -225,6 +225,9 @@ module Yara
     def scan(test_string)
       raise NotCompiledError, "Rules not compiled. Call compile() first." unless @scanner_pointer
 
+      # Handle nil input by treating it as empty string
+      test_string = "" if test_string.nil?
+
       results = ScanResults.new
 
       # Set up callback for matching rules

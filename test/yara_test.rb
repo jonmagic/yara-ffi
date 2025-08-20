@@ -61,4 +61,18 @@ class YaraTest < Minitest::Test
     results = Yara.test(rule, "hi\000")
     assert_empty results
   end
+
+  def test_nil_string_handling
+    # Test that passing nil doesn't crash but returns empty results
+    results = Yara.test(rule, nil)
+    assert_empty results, "Expected no matches when scanning nil data"
+    assert_instance_of Yara::ScanResults, results, "Expected ScanResults object"
+  end
+
+  def test_nil_string_handling_with_scan_method
+    # Test that Yara.scan also handles nil without crashing
+    results = Yara.scan(rule, nil)
+    assert_empty results, "Expected no matches when scanning nil data with Yara.scan"
+    assert_instance_of Yara::ScanResults, results, "Expected ScanResults object"
+  end
 end
