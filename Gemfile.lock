@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    yara-ffi (4.1.0)
+    yara-ffi (4.1.1)
       ffi
 
 GEM
