@@ -203,6 +203,28 @@ module Yara
     # C Signature: enum YRX_RESULT yrx_scanner_set_global_float(struct YRX_SCANNER *scanner, const char *ident, double value)
     attach_function :yrx_scanner_set_global_float, [:pointer, :string, :double], :int
 
+    # YRX_COMPILER APIs
+    # Create a compiler: enum YRX_RESULT yrx_compiler_create(uint32_t flags, struct YRX_COMPILER **compiler)
+    attach_function :yrx_compiler_create, [:uint32, :pointer], :int
+
+    # Destroy a compiler: void yrx_compiler_destroy(struct YRX_COMPILER *compiler)
+    attach_function :yrx_compiler_destroy, [:pointer], :void
+
+    # Add source: enum YRX_RESULT yrx_compiler_add_source(struct YRX_COMPILER *compiler, const char *src)
+    attach_function :yrx_compiler_add_source, [:pointer, :string], :int
+
+    # Add source with origin: enum YRX_RESULT yrx_compiler_add_source_with_origin(struct YRX_COMPILER *compiler, const char *src, const char *origin)
+    attach_function :yrx_compiler_add_source_with_origin, [:pointer, :string, :string], :int
+
+    # Define globals on compiler
+    attach_function :yrx_compiler_define_global_str, [:pointer, :string, :string], :int
+    attach_function :yrx_compiler_define_global_bool, [:pointer, :string, :bool], :int
+    attach_function :yrx_compiler_define_global_int, [:pointer, :string, :long_long], :int
+    attach_function :yrx_compiler_define_global_float, [:pointer, :string, :double], :int
+
+    # Build compiler into rules: struct YRX_RULES *yrx_compiler_build(struct YRX_COMPILER *compiler)
+    attach_function :yrx_compiler_build, [:pointer], :pointer
+
     # Public: Extract the identifier (name) from a rule object.
     #
     # This function retrieves the rule name from a YRX_RULE pointer, typically
