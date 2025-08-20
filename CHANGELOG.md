@@ -1,5 +1,11 @@
 ## [Unreleased]
 
+## [4.1.1] - 2025-08-20
+
+- **FIXED**: Fixed crash when `Yara.test` or `Yara.scan` receive `nil` as the test string parameter ([#15](https://github.com/jonmagic/yara-ffi/issues/15))
+  - `nil` values are now treated as empty strings instead of causing `NoMethodError`
+  - Both `Yara.test(rule, nil)` and `Yara.scan(rule, nil)` now return empty `ScanResults` objects
+
 ## [4.1.0] - 2025-08-20
 
 - **NEW**: Added advanced `Yara::Compiler` API for complex rule compilation scenarios
