@@ -7,6 +7,47 @@ A Ruby library for using [YARA-X](https://virustotal.github.io/yara-x/) via FFI 
 - Ruby 3.0 or later
 - YARA-X C API library (`libyara_x_capi`) installed on your system
 
+## What's New
+
+Since version 4.0.0, yara-ffi has been significantly enhanced with advanced YARA-X features:
+
+### 🔍 **Pattern Matching Analysis** (NEW)
+- Detailed pattern match information with exact offsets and lengths
+- Extract matched data from specific locations
+- Analyze overlapping and repeated pattern matches
+- Perfect for forensic analysis and data extraction
+
+### 🛠️ **Advanced Rule Compilation** (NEW)
+- `Yara::Compiler` class for complex compilation scenarios
+- Global variable definition at compile time
+- Structured error and warning reporting via JSON
+- Support for multiple rule sources with origin tracking
+
+### 💾 **Rule Serialization** (NEW)
+- Compile rules once, serialize for persistence or transport
+- Deserialize pre-compiled rules for instant scanning
+- Eliminate repeated compilation overhead in production
+
+### 🏷️ **Metadata & Tags Support** (NEW)
+- Full access to rule metadata with proper type handling
+- Tag-based rule categorization and filtering
+- Type-safe metadata access methods
+
+### 🌐 **Global Variables** (NEW)
+- Set string, boolean, integer, and float globals
+- Bulk global variable setting with error handling modes
+- Runtime rule behavior customization
+
+### 📁 **Namespace Support** (NEW)
+- Organize rules into logical namespaces
+- Avoid naming conflicts in large rule sets
+- Qualified rule name access
+
+### ⚡ **Performance Enhancements** (NEW)
+- Configurable scan timeouts to prevent runaway scans
+- Efficient resource management with automatic cleanup
+- Parallel scanning support with serialized rules
+
 ## Installation
 
 Add this line to your application's Gemfile:
@@ -25,136 +66,41 @@ Or install it yourself as:
 
 ## Usage
 
-### Quick scanning with convenience methods
-
 ```ruby
-rule = <<-RULE
-rule ExampleRule
-{
-  meta:
-    description = "Example rule for testing"
+require 'yara'
 
-  strings:
-    $text_string = "we were here"
-    $text_regex = /were here/
+# Quick test
+results = Yara.test(rule_string, data)
+puts "Matched: #{results.first.rule_name}" if results.first&.match?
 
-  condition:
-    $text_string or $text_regex
-}
-RULE
-
-# Test a rule against data
-results = Yara.test(rule, "one day we were here and then we were not")
-puts results.first.match?  # => true
-puts results.first.rule_name  # => "ExampleRule"
-
-# Scan with a block for processing results
-Yara.scan(rule, "sample data") do |result|
-  puts "Matched: #{result.rule_name}"
-end
-```
-
-### Manual scanner usage
-
-```ruby
-rule = <<-RULE
-rule ExampleRule
-{
-  meta:
-    string_meta = "an example rule for testing"
-    int_meta = 42
-    bool_meta = true
-
-  strings:
-    $my_text_string = "we were here"
-    $my_text_regex = /were here/
-
-  condition:
-    $my_text_string or $my_text_regex
-}
-RULE
-
-scanner = Yara::Scanner.new
-scanner.add_rule(rule)
-scanner.compile
-
-results = scanner.scan("one day we were here and then we were not")
-result = results.first
-
-puts result.match?           # => true
-puts result.rule_name        # => "ExampleRule"
-puts result.rule_meta        # => {:string_meta=>"an example rule for testing", :int_meta=>42, :bool_meta=>true}
-puts result.rule_strings     # => {:"$my_text_string"=>"we were here", :"$my_text_regex"=>"were here"}
-
-scanner.close  # Clean up resources when done
-```
-
-### Block-based scanner usage
-
-```ruby
-# Automatically handles resource cleanup
+# Resource-managed scanning
 Yara::Scanner.open(rule) do |scanner|
   scanner.compile
-  results = scanner.scan("test data")
-  # scanner is automatically closed when block exits
+  results = scanner.scan(data)
 end
 ```
 
-### Multiple rules
+**For complete usage examples and API documentation, see [USAGE.md](USAGE.md).**
 
-```ruby
-rule1 = <<-RULE
-rule RuleOne
-{
-  strings:
-    $a = "pattern one"
-  condition:
-    $a
-}
-RULE
+## Key Features
 
-rule2 = <<-RULE
-rule RuleTwo
-{
-  strings:
-    $b = "pattern two"
-  condition:
-    $b
-}
-RULE
+This gem provides comprehensive YARA-X functionality including:
 
-scanner = Yara::Scanner.new
-scanner.add_rule(rule1)
-scanner.add_rule(rule2)
-scanner.compile
-
-results = scanner.scan("text with pattern one and pattern two")
-puts results.map(&:rule_name)  # => ["RuleOne", "RuleTwo"]
-scanner.close
-```
+- **Pattern Matching Analysis**: Detailed pattern match information with exact offsets and lengths
+- **Rule Compilation & Management**: Advanced compilation with global variables and error diagnostics
+- **Rule Serialization**: Compile once, use many times across processes
+- **Metadata & Tags**: Full access to rule metadata and tag-based categorization
+- **Namespaces**: Organize rules logically and avoid naming conflicts
+- **Global Variables**: Dynamic rule behavior with runtime variable setting
+- **Performance Optimization**: Timeouts, efficient resource usage, and parallel scanning
 
 ## API Reference
 
-### Yara module methods
+**Core Classes**: `Yara`, `Yara::Scanner`, `Yara::Compiler`, `Yara::ScanResult`, `Yara::ScanResults`, `Yara::PatternMatch`
 
-- `Yara.test(rule_string, data)` - Quick test of a rule against data, returns array of ScanResult objects
-- `Yara.scan(rule_string, data, &block)` - Scan data with rule, optionally yielding each result to block
+**Key Methods**: `Yara.test()`, `Yara.scan()`, `Scanner.open()`, `Scanner#scan()`, `ScanResult#pattern_matches`
 
-### Scanner class
-
-- `Scanner.new` - Create a new scanner instance
-- `Scanner.open(rule_string, namespace: nil, &block)` - Create scanner with optional rule and namespace, auto-cleanup with block
-- `#add_rule(rule_string, namespace: nil)` - Add a YARA rule to the scanner
-- `#compile` - Compile all added rules (required before scanning)
-- `#scan(data, &block)` - Scan data and return ScanResults, or yield each result to block
-- `#close` - Free scanner resources
-
-### ScanResult class
-
-- `#match?` - Returns true if rule matched
-- `#rule_name` - Name of the matched rule
-- `#rule_meta` - Hash of rule metadata (keys are symbols)
-- `#rule_strings` - Hash of rule strings (keys are symbols with $ prefix)
+For detailed API documentation and examples, see **[USAGE.md](USAGE.md)**.
 
 ## Installing YARA-X
 
