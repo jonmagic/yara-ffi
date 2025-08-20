@@ -87,6 +87,37 @@ module Yara
       scanner
     end
 
+    # Public: Create a Scanner from a serialized rules blob.
+    #
+    # Creates a new Scanner by deserializing a previously serialized YARA-X
+    # rules blob. This is useful when you have precompiled rules that were
+    # produced by Yara::Compiler#build_serialized or shipped between processes
+    # or persisted to disk.
+    #
+    # bytes      - A String containing the binary serialized representation of YRX_RULES
+    # owns_rules - A Boolean indicating if the returned Scanner will take ownership
+    #              of the underlying rules and destroy them when close is called.
+    #              If false, the caller is responsible for freeing the rules with
+    #              Yara::FFI.yrx_rules_destroy (default: true)
+    #
+    # Returns a Scanner instance that is ready to use (no additional compile step required).
+    # Raises CompilationError if deserialization fails.
+    def self.from_serialized(bytes, owns_rules: true)
+      data_ptr = ::FFI::MemoryPointer.from_string(bytes)
+      data_len = bytes.bytesize
+
+      rules_ptr_holder = ::FFI::MemoryPointer.new(:pointer)
+      result = Yara::FFI.yrx_rules_deserialize(data_ptr, data_len, rules_ptr_holder)
+      if result != Yara::FFI::YRX_SUCCESS
+        error_msg = Yara::FFI.yrx_last_error
+        raise CompilationError, "Failed to deserialize rules: #{error_msg}"
+      end
+
+      rules_ptr = rules_ptr_holder.get_pointer(0)
+      scanner = from_rules(rules_ptr, owns_rules: owns_rules)
+      scanner
+    end
+
     # Public: Add a YARA rule to the scanner for later compilation.
     #
     # Rules are accumulated as source code and compiled together when compile()

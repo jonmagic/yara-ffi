@@ -236,6 +236,14 @@ module Yara
     # C Signature: enum YRX_RESULT yrx_compiler_warnings_json(struct YRX_COMPILER *compiler, struct YRX_BUFFER **buf)
     attach_function :yrx_compiler_warnings_json, [:pointer, :pointer], :int
 
+    # Serialize rules into a YRX_BUFFER
+    # C Signature: enum YRX_RESULT yrx_rules_serialize(const struct YRX_RULES *rules, struct YRX_BUFFER **buf)
+    attach_function :yrx_rules_serialize, [:pointer, :pointer], :int
+
+    # Deserialize rules from bytes
+    # C Signature: enum YRX_RESULT yrx_rules_deserialize(const uint8_t *data, size_t len, struct YRX_RULES **rules)
+    attach_function :yrx_rules_deserialize, [:pointer, :size_t, :pointer], :int
+
     # Struct mapping for YRX_BUFFER
     class YRX_BUFFER < ::FFI::Struct
       layout :data, :pointer,

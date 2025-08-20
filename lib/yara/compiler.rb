@@ -75,6 +75,41 @@ module Yara
       rules_ptr
     end
 
+    # Public: Build and return a serialized representation of compiled rules.
+    #
+    # Compiles the currently added sources (via add_source) into a YRX_RULES
+    # object and serializes it into a binary blob suitable for persistence or
+    # transport. The returned String contains the serialized rules and can be
+    # deserialized later with Yara::Scanner.from_serialized or the underlying
+    # yrx_rules_deserialize FFI call.
+    #
+    # Returns a String containing binary serialized rules (raw bytes).
+    # Raises CompileError if compilation or serialization fails.
+    def build_serialized
+      rules_ptr = build
+
+      buf_ptr_holder = ::FFI::MemoryPointer.new(:pointer)
+      result = Yara::FFI.yrx_rules_serialize(rules_ptr, buf_ptr_holder)
+
+      # Destroy the rules pointer after serialization (we own it from build)
+      Yara::FFI.yrx_rules_destroy(rules_ptr)
+
+      if result != Yara::FFI::YRX_SUCCESS
+        raise CompileError, "Failed to serialize rules: #{Yara::FFI.yrx_last_error}"
+      end
+
+      buf_ptr = buf_ptr_holder.get_pointer(0)
+      buffer = Yara::FFI::YRX_BUFFER.new(buf_ptr)
+      begin
+        data_ptr = buffer[:data]
+        length = buffer[:length]
+        str = data_ptr.get_bytes(0, length)
+        return str
+      ensure
+        Yara::FFI.yrx_buffer_destroy(buf_ptr)
+      end
+    end
+
     # Return compilation errors as a parsed JSON object (Array of error objects).
     # This uses yrx_compiler_errors_json which returns a YRX_BUFFER containing
     # the JSON serialization. The buffer is destroyed after being converted.
