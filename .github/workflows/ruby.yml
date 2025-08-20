@@ -47,9 +47,8 @@ jobs:
         # Build and install YARA-X C API library
         git clone --depth 1 --branch v1.5.0 https://github.com/VirusTotal/yara-x.git /tmp/yara-x
         cd /tmp/yara-x
-        sudo -E cargo cinstall -p yara-x-capi --release
+        sudo -E PATH="$HOME/.cargo/bin:$PATH" cargo cinstall -p yara-x-capi --release
         sudo ldconfig
-
     - name: Run tests
       run: bundle exec rake test
 
