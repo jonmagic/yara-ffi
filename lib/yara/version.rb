@@ -5,5 +5,5 @@ module Yara
   #
   # This constant holds the current version of the Ruby gem, not the underlying
   # YARA-X library version. The gem version follows semantic versioning.
-  VERSION = "4.0.0"
+  VERSION = "4.1.0"
 end

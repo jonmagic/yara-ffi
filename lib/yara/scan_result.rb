@@ -2,13 +2,13 @@ module Yara
   # Public: Represents a single rule match result from YARA scanning.
   #
   # A ScanResult contains information about a YARA rule that matched during
-  # scanning, including the rule name, metadata, and string patterns. This
-  # class provides access to rule information extracted from both the YARA-X
-  # API and parsed rule source code.
+  # scanning, including the rule name, metadata, string patterns, and detailed
+  # pattern match information. This class provides access to rule information
+  # extracted from both the YARA-X API and parsed rule source code.
   #
-  # Currently, metadata and string parsing is implemented by parsing the
-  # original rule source code using regular expressions. This is a temporary
-  # solution until YARA-X provides more complete API access to rule internals.
+  # The enhanced version provides detailed pattern match information including
+  # exact offsets and lengths of each pattern match, allowing for precise
+  # forensic analysis and data extraction.
   #
   # Examples
   #
@@ -16,7 +16,15 @@ module Yara
   #   scanner.scan(data) do |result|
   #     puts "Matched rule: #{result.rule_name}"
   #     puts "Author: #{result.rule_meta[:author]}"
-  #     puts "Patterns: #{result.rule_strings.keys}"
+  #
+  #     # New: Access detailed pattern matches
+  #     result.pattern_matches.each do |pattern_name, matches|
+  #       puts "Pattern #{pattern_name}: #{matches.size} matches"
+  #       matches.each do |match|
+  #         matched_text = data[match.offset, match.length]
+  #         puts "  At offset #{match.offset}: '#{matched_text}'"
+  #       end
+  #     end
   #   end
   class ScanResult
     # Public: The name identifier of the matched rule.
@@ -31,30 +39,65 @@ module Yara
     # Public: Hash of string pattern names and their values from the rule.
     attr_reader :rule_strings
 
+    # Public: Hash of pattern names to arrays of PatternMatch objects.
+    #
+    # This provides detailed information about exactly where each pattern
+    # matched in the scanned data, including offset and length information.
+    attr_reader :pattern_matches
+
+    # Public: Array of rule tags for categorization and organization.
+    #
+    # Tags are labels attached to rules that help categorize and organize
+    # rule sets. Common tags include malware family names, platforms,
+    # or behavior categories.
+    attr_reader :tags
+
+    # Public: Namespace of the rule, if defined.
+    #
+    # YARA rules can be organized into namespaces to avoid naming conflicts
+    # and provide logical grouping. This contains the namespace name or
+    # nil if the rule is in the default namespace.
+    attr_reader :namespace
+
     # Public: Initialize a new ScanResult.
     #
     # This constructor is typically called internally by Scanner when a rule
     # matches during scanning. It extracts available information from both
-    # the YARA-X API and the original rule source code.
+    # the YARA-X API and the original rule source code, including detailed
+    # pattern match information.
     #
-    # rule_name   - A String containing the rule identifier/name
-    # rule_ptr    - An FFI Pointer to the YRX_RULE structure
-    # is_match    - A Boolean indicating if this represents a match (default true)
-    # rule_source - An optional String containing the original rule source for parsing
+    # rule_name      - A String containing the rule identifier/name
+    # rule_ptr       - An FFI Pointer to the YRX_RULE structure
+    # is_match       - A Boolean indicating if this represents a match (default true)
+    # rule_source    - An optional String containing the original rule source for parsing
+    # scanned_data   - An optional String containing the data that was scanned (needed for pattern matches)
     #
     # Examples
     #
     #   # Typically created internally by Scanner
-    #   result = ScanResult.new("MyRule", rule_ptr, true, rule_source)
-    def initialize(rule_name, rule_ptr, is_match = true, rule_source = nil)
+    #   result = ScanResult.new("MyRule", rule_ptr, true, rule_source, scanned_data)
+    def initialize(rule_name, rule_ptr, is_match = true, rule_source = nil, scanned_data = nil)
       @rule_name = rule_name
       @rule_ptr = rule_ptr
       @is_match = is_match
       @rule_source = rule_source
+      @scanned_data = scanned_data
       @rule_meta = {}
       @rule_strings = {}
+      @pattern_matches = {}
+      @tags = []
+      @namespace = nil
 
-      # For now, parse metadata and strings from source as a temporary solution
+      # Extract information using YARA-X API when rule pointer is available
+      if @rule_ptr && !@rule_ptr.null?
+        # TODO: Re-enable structured metadata after fixing union handling
+        # extract_structured_metadata
+        extract_tags
+        extract_namespace
+        extract_pattern_matches
+      end
+
+      # Parse metadata and strings from source (primary method for now)
       if @rule_source
         parse_metadata_from_source
         parse_strings_from_source
@@ -72,6 +115,376 @@ module Yara
     # Returns a Boolean indicating whether the rule matched.
     def match?
       @is_match
+    end
+
+    # Public: Get all matches for a specific pattern by name.
+    #
+    # This method returns an array of PatternMatch objects for the specified
+    # pattern identifier, or an empty array if the pattern didn't match or
+    # doesn't exist.
+    #
+    # pattern_name - A String or Symbol identifying the pattern (e.g., "$text1")
+    #
+    # Examples
+    #
+    #   # Get matches for a specific pattern
+    #   matches = result.matches_for_pattern("$suspicious_string")
+    #   matches.each { |m| puts "Found at offset #{m.offset}" }
+    #
+    # Returns an Array of PatternMatch objects.
+    def matches_for_pattern(pattern_name)
+      key = pattern_name.is_a?(Symbol) ? pattern_name : pattern_name.to_sym
+      @pattern_matches[key] || []
+    end
+
+    # Public: Get the total number of pattern matches across all patterns.
+    #
+    # This convenience method counts the total matches across all patterns
+    # that triggered for this rule.
+    #
+    # Examples
+    #
+    #   puts "Rule matched with #{result.total_matches} pattern matches"
+    #
+    # Returns an Integer count of total matches.
+    def total_matches
+      @pattern_matches.values.map(&:size).sum
+    end
+
+    # Public: Get all match locations as a flattened array.
+    #
+    # This method returns all pattern matches across all patterns as a single
+    # array, sorted by offset. Useful for getting an overview of all match
+    # locations in the data.
+    #
+    # Examples
+    #
+    #   # Get all matches sorted by location
+    #   all_matches = result.all_matches.sort_by(&:offset)
+    #   all_matches.each { |m| puts "Match at #{m.offset}" }
+    #
+    # Returns an Array of PatternMatch objects sorted by offset.
+    def all_matches
+      @pattern_matches.values.flatten.sort_by(&:offset)
+    end
+
+    # Public: Check if a specific pattern had any matches.
+    #
+    # This convenience method checks whether the specified pattern identifier
+    # had any matches during scanning.
+    #
+    # pattern_name - A String or Symbol identifying the pattern
+    #
+    # Examples
+    #
+    #   if result.pattern_matched?("$malware_signature")
+    #     puts "Malware signature detected!"
+    #   end
+    #
+    # Returns a Boolean indicating whether the pattern matched.
+    def pattern_matched?(pattern_name)
+      matches_for_pattern(pattern_name).any?
+    end
+
+    # Public: Check if the rule has a specific tag.
+    #
+    # This method checks whether the rule includes the specified tag.
+    # Tag comparison is case-sensitive.
+    #
+    # tag - A String representing the tag to check for
+    #
+    # Examples
+    #
+    #   if result.has_tag?("malware")
+    #     puts "This rule is tagged as malware"
+    #   end
+    #
+    # Returns a Boolean indicating whether the rule has the tag.
+    def has_tag?(tag)
+      return false if tag.nil?
+      @tags.include?(tag.to_s)
+    end
+
+    # Public: Get the qualified rule name including namespace.
+    #
+    # This method returns the fully qualified rule name, including the
+    # namespace if present. For rules in the default namespace, this
+    # is the same as rule_name.
+    #
+    # Examples
+    #
+    #   result.qualified_name  # => "malware.suspicious_behavior"
+    #   # or just "rule_name" if no namespace
+    #
+    # Returns a String containing the qualified rule name.
+    def qualified_name
+      if @namespace && !@namespace.empty?
+        "#{@namespace}.#{@rule_name}"
+      else
+        @rule_name
+      end
+    end
+
+    # Public: Get a typed metadata value by key.
+    #
+    # This method provides type-safe access to metadata values, returning
+    # the actual Ruby type (String, Integer, Boolean, Float) instead of
+    # requiring manual type conversion.
+    #
+    # key - A String or Symbol identifying the metadata key
+    #
+    # Examples
+    #
+    #   result.metadata_value(:severity)    # => 8 (Integer)
+    #   result.metadata_value("author")     # => "Security Team" (String)
+    #   result.metadata_value(:active)      # => true (Boolean)
+    #
+    # Returns the metadata value in its native Ruby type, or nil if not found.
+    def metadata_value(key)
+      return nil if key.nil?
+      @rule_meta[key.to_sym]
+    end
+
+    # Public: Get an integer metadata value by key.
+    #
+    # This method provides a convenient way to access integer metadata
+    # with automatic type checking.
+    #
+    # key - A String or Symbol identifying the metadata key
+    #
+    # Examples
+    #
+    #   result.metadata_int(:severity)   # => 8
+    #   result.metadata_int(:version)    # => 2
+    #
+    # Returns an Integer value, or nil if key doesn't exist or isn't an integer.
+    def metadata_int(key)
+      value = metadata_value(key)
+      value.is_a?(Integer) ? value : nil
+    end
+
+    # Public: Get a string metadata value by key.
+    #
+    # This method provides a convenient way to access string metadata
+    # with automatic type checking.
+    #
+    # key - A String or Symbol identifying the metadata key
+    #
+    # Examples
+    #
+    #   result.metadata_string(:author)      # => "Security Team"
+    #   result.metadata_string(:description) # => "Detects malware"
+    #
+    # Returns a String value, or nil if key doesn't exist or isn't a string.
+    def metadata_string(key)
+      value = metadata_value(key)
+      value.is_a?(String) ? value : nil
+    end
+
+    # Public: Get a boolean metadata value by key.
+    #
+    # This method provides a convenient way to access boolean metadata
+    # with automatic type checking.
+    #
+    # key - A String or Symbol identifying the metadata key
+    #
+    # Examples
+    #
+    #   result.metadata_bool(:active)  # => true
+    #   result.metadata_bool(:enabled) # => false
+    #
+    # Returns a Boolean value, or nil if key doesn't exist or isn't a boolean.
+    def metadata_bool(key)
+      value = metadata_value(key)
+      [true, false].include?(value) ? value : nil
+    end
+
+    # Public: Get a float metadata value by key.
+    #
+    # This method provides a convenient way to access float metadata
+    # with automatic type checking.
+    #
+    # key - A String or Symbol identifying the metadata key
+    #
+    # Examples
+    #
+    #   result.metadata_float(:confidence) # => 0.95
+    #   result.metadata_float(:ratio)      # => 3.14
+    #
+    # Returns a Float value, or nil if key doesn't exist or isn't a float.
+    def metadata_float(key)
+      value = metadata_value(key)
+      value.is_a?(Float) ? value : nil
+    end
+
+    # Internal: Extract detailed pattern match information using YARA-X API.
+    #
+    # This method uses the YARA-X C API to iterate through all patterns defined
+    # in the matched rule and collect detailed match information including exact
+    # offsets and lengths for each match.
+    #
+    # This replaces the need to parse pattern information from rule source code
+    # and provides precise forensic data about what matched and where.
+    #
+    # Returns nothing (modifies @pattern_matches hash).
+    def extract_pattern_matches
+      return unless @rule_ptr && !@rule_ptr.null?
+
+      # Collect pattern match data by iterating through patterns
+      pattern_callback = proc do |pattern_ptr, user_data|
+        next if pattern_ptr.nil? || pattern_ptr.null?
+
+        # Get pattern identifier
+        ident_ptr = ::FFI::MemoryPointer.new(:pointer)
+        len_ptr = ::FFI::MemoryPointer.new(:size_t)
+
+        result = Yara::FFI.yrx_pattern_identifier(pattern_ptr, ident_ptr, len_ptr)
+        next unless result == Yara::FFI::YRX_SUCCESS
+
+        identifier_ptr = ident_ptr.get_pointer(0)
+        next if identifier_ptr.nil? || identifier_ptr.null?
+
+        identifier_len = len_ptr.get_ulong(0)
+        pattern_name = identifier_ptr.read_string(identifier_len).to_sym
+
+        # Initialize match array for this pattern
+        @pattern_matches[pattern_name] ||= []
+
+        # Iterate through matches for this pattern
+        match_callback = proc do |match_ptr, match_user_data|
+          next if match_ptr.nil? || match_ptr.null?
+
+          # Extract match details using FFI struct
+          match = Yara::FFI::YRX_MATCH.new(match_ptr)
+          pattern_match = PatternMatch.new(match[:offset], match[:length])
+          @pattern_matches[pattern_name] << pattern_match
+        end
+
+        # Iterate through all matches for this pattern
+        Yara::FFI.yrx_pattern_iter_matches(pattern_ptr, match_callback, nil)
+      end
+
+      # Iterate through all patterns in the rule
+      Yara::FFI.yrx_rule_iter_patterns(@rule_ptr, pattern_callback, nil)
+    end
+
+    # Internal: Extract structured metadata using YARA-X API.
+    #
+    # This method uses the YARA-X C API to access rule metadata with proper
+    # type information, replacing the regex-based parsing approach with
+    # reliable structured access.
+    #
+    # Returns nothing (modifies @rule_meta hash).
+    def extract_structured_metadata
+      return unless @rule_ptr && !@rule_ptr.null?
+
+      # Callback to process each metadata entry
+      metadata_callback = proc do |metadata_ptr, user_data|
+        next if metadata_ptr.nil? || metadata_ptr.null?
+
+        begin
+          # Extract metadata using FFI struct
+          metadata = Yara::FFI::YRX_METADATA.new(metadata_ptr)
+          identifier_ptr = metadata[:identifier]
+          next if identifier_ptr.nil? || identifier_ptr.null?
+
+          identifier = identifier_ptr.read_string.to_sym
+          value_type = metadata[:value_type]
+
+          # Extract value based on type using union access
+          # Note: We need to read from the value union at the correct offset
+          value_ptr = metadata.pointer + metadata.offset_of(:value)
+
+          case value_type
+          when Yara::FFI::YRX_I64
+            value = value_ptr.read_long_long
+          when Yara::FFI::YRX_F64
+            value = value_ptr.read_double
+          when Yara::FFI::YRX_BOOLEAN
+            value = value_ptr.read_char != 0
+          when Yara::FFI::YRX_STRING
+            string_ptr_ptr = value_ptr.read_pointer
+            value = string_ptr_ptr.nil? || string_ptr_ptr.null? ? "" : string_ptr_ptr.read_string
+          when Yara::FFI::YRX_BYTES
+            bytes_ptr = value_ptr.read_pointer
+            if bytes_ptr.nil? || bytes_ptr.null?
+              value = ""
+            else
+              # Read the YRX_METADATA_BYTES struct
+              length = bytes_ptr.read_size_t
+              data_ptr = bytes_ptr.read_pointer(8) # offset past the length field
+              value = length > 0 && !data_ptr.null? ? data_ptr.read_string(length) : ""
+            end
+          else
+            value = nil  # Unknown type
+          end
+
+          @rule_meta[identifier] = value unless value.nil?
+        rescue
+          # Skip problematic metadata entries rather than failing entirely
+          # This ensures partial extraction works even if some entries have issues
+        end
+      end
+
+      # Iterate through all metadata entries
+      Yara::FFI.yrx_rule_iter_metadata(@rule_ptr, metadata_callback, nil)
+    rescue
+      # If structured metadata extraction fails, fall back to source parsing
+      # This ensures backwards compatibility
+    end
+
+    # Internal: Extract rule tags using YARA-X API.
+    #
+    # This method uses the YARA-X C API to access all tags defined for the rule.
+    # Tags provide categorization and organization capabilities for rule sets.
+    #
+    # Returns nothing (modifies @tags array).
+    def extract_tags
+      return unless @rule_ptr && !@rule_ptr.null?
+
+      # Callback to process each tag
+      tag_callback = proc do |tag_ptr, user_data|
+        next if tag_ptr.nil? || tag_ptr.null?
+
+        begin
+          tag = tag_ptr.read_string
+          @tags << tag unless tag.empty?
+        rescue
+          # Skip problematic tags rather than failing entirely
+        end
+      end
+
+      # Iterate through all tags
+      Yara::FFI.yrx_rule_iter_tags(@rule_ptr, tag_callback, nil)
+
+      # If iteration fails, ensure @tags is at least an empty array
+      @tags ||= []
+    end
+
+    # Internal: Extract rule namespace using YARA-X API.
+    #
+    # This method uses the YARA-X C API to access the namespace that contains
+    # this rule. Namespaces provide logical grouping and avoid naming conflicts.
+    #
+    # Returns nothing (modifies @namespace attribute).
+    def extract_namespace
+      return unless @rule_ptr && !@rule_ptr.null?
+
+      # Get namespace information
+      ns_ptr = ::FFI::MemoryPointer.new(:pointer)
+      len_ptr = ::FFI::MemoryPointer.new(:size_t)
+
+      result = Yara::FFI.yrx_rule_namespace(@rule_ptr, ns_ptr, len_ptr)
+      return unless result == Yara::FFI::YRX_SUCCESS
+
+      namespace_ptr = ns_ptr.get_pointer(0)
+      return if namespace_ptr.nil? || namespace_ptr.null?
+
+      namespace_len = len_ptr.get_ulong(0)
+      @namespace = namespace_len > 0 ? namespace_ptr.read_string(namespace_len) : nil
+    rescue
+      # Set to nil if extraction fails
+      @namespace = nil
     end
 
     # Internal: Parse metadata from the original rule source code.

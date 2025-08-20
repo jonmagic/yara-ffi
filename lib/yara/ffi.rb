@@ -178,6 +178,99 @@ module Yara
     # C Signature: enum YRX_RESULT yrx_scanner_scan(struct YRX_SCANNER *scanner, const uint8_t *data, size_t len)
     attach_function :yrx_scanner_scan, [:pointer, :pointer, :size_t], :int
 
+    # Public: Set timeout (in milliseconds) for a scanner.
+    #
+    # scanner - A Pointer to the scanner object
+    # timeout - A uint64_t value representing timeout in milliseconds
+    #
+    # Returns an Integer result code (YRX_SUCCESS on success).
+    # C Signature: enum YRX_RESULT yrx_scanner_set_timeout(struct YRX_SCANNER *scanner, uint64_t timeout)
+    attach_function :yrx_scanner_set_timeout, [:pointer, :ulong_long], :int
+
+    # Public: Set a global string variable for the scanner.
+    # C Signature: enum YRX_RESULT yrx_scanner_set_global_str(struct YRX_SCANNER *scanner, const char *ident, const char *value)
+    attach_function :yrx_scanner_set_global_str, [:pointer, :string, :string], :int
+
+    # Public: Set a global boolean variable for the scanner.
+    # C Signature: enum YRX_RESULT yrx_scanner_set_global_bool(struct YRX_SCANNER *scanner, const char *ident, bool value)
+    attach_function :yrx_scanner_set_global_bool, [:pointer, :string, :bool], :int
+
+    # Public: Set a global integer variable for the scanner.
+    # C Signature: enum YRX_RESULT yrx_scanner_set_global_int(struct YRX_SCANNER *scanner, const char *ident, int64_t value)
+    attach_function :yrx_scanner_set_global_int, [:pointer, :string, :long_long], :int
+
+    # Public: Set a global float variable for the scanner.
+    # C Signature: enum YRX_RESULT yrx_scanner_set_global_float(struct YRX_SCANNER *scanner, const char *ident, double value)
+    attach_function :yrx_scanner_set_global_float, [:pointer, :string, :double], :int
+
+    # YRX_COMPILER APIs
+    # Create a compiler: enum YRX_RESULT yrx_compiler_create(uint32_t flags, struct YRX_COMPILER **compiler)
+    attach_function :yrx_compiler_create, [:uint32, :pointer], :int
+
+    # Destroy a compiler: void yrx_compiler_destroy(struct YRX_COMPILER *compiler)
+    attach_function :yrx_compiler_destroy, [:pointer], :void
+
+    # Add source: enum YRX_RESULT yrx_compiler_add_source(struct YRX_COMPILER *compiler, const char *src)
+    attach_function :yrx_compiler_add_source, [:pointer, :string], :int
+
+    # Add source with origin: enum YRX_RESULT yrx_compiler_add_source_with_origin(struct YRX_COMPILER *compiler, const char *src, const char *origin)
+    attach_function :yrx_compiler_add_source_with_origin, [:pointer, :string, :string], :int
+
+    # Define globals on compiler
+    attach_function :yrx_compiler_define_global_str, [:pointer, :string, :string], :int
+    attach_function :yrx_compiler_define_global_bool, [:pointer, :string, :bool], :int
+    attach_function :yrx_compiler_define_global_int, [:pointer, :string, :long_long], :int
+    attach_function :yrx_compiler_define_global_float, [:pointer, :string, :double], :int
+
+    # Build compiler into rules: struct YRX_RULES *yrx_compiler_build(struct YRX_COMPILER *compiler)
+    attach_function :yrx_compiler_build, [:pointer], :pointer
+
+    # YRX_BUFFER utilities
+    # C Signature: void yrx_buffer_destroy(struct YRX_BUFFER *buf)
+    attach_function :yrx_buffer_destroy, [:pointer], :void
+
+    # Compiler diagnostics as JSON
+    # C Signature: enum YRX_RESULT yrx_compiler_errors_json(struct YRX_COMPILER *compiler, struct YRX_BUFFER **buf)
+    attach_function :yrx_compiler_errors_json, [:pointer, :pointer], :int
+
+    # C Signature: enum YRX_RESULT yrx_compiler_warnings_json(struct YRX_COMPILER *compiler, struct YRX_BUFFER **buf)
+    attach_function :yrx_compiler_warnings_json, [:pointer, :pointer], :int
+
+    # Serialize rules into a YRX_BUFFER
+    # C Signature: enum YRX_RESULT yrx_rules_serialize(const struct YRX_RULES *rules, struct YRX_BUFFER **buf)
+    attach_function :yrx_rules_serialize, [:pointer, :pointer], :int
+
+    # Deserialize rules from bytes
+    # C Signature: enum YRX_RESULT yrx_rules_deserialize(const uint8_t *data, size_t len, struct YRX_RULES **rules)
+    attach_function :yrx_rules_deserialize, [:pointer, :size_t, :pointer], :int
+
+    # Struct mapping for YRX_BUFFER
+    class YRX_BUFFER < ::FFI::Struct
+      layout :data, :pointer,
+             :length, :size_t
+    end
+
+    # Struct mapping for YRX_MATCH
+    class YRX_MATCH < ::FFI::Struct
+      layout :offset, :size_t,
+             :length, :size_t
+    end
+
+    # Struct mapping for YRX_METADATA
+    # Note: The value field is a union. We'll use a simple approach
+    # and access the value as a pointer, then interpret based on type.
+    class YRX_METADATA < ::FFI::Struct
+      layout :identifier, :pointer,
+             :value_type, :int,
+             :value, [:char, 16]  # Union represented as byte array (largest possible union member)
+    end
+
+    # Struct mapping for YRX_METADATA_BYTES
+    class YRX_METADATA_BYTES < ::FFI::Struct
+      layout :length, :size_t,
+             :data, :pointer
+    end
+
     # Public: Extract the identifier (name) from a rule object.
     #
     # This function retrieves the rule name from a YRX_RULE pointer, typically
@@ -278,6 +371,85 @@ module Yara
     # C Signature: enum YRX_RESULT yrx_pattern_identifier(const struct YRX_PATTERN *pattern, const uint8_t **ident, size_t *len)
     attach_function :yrx_pattern_identifier, [:pointer, :pointer, :pointer], :int
 
+    # Internal: Callback function type for match iteration.
+    #
+    # This callback is invoked for each match found during pattern match
+    # iteration. The callback receives pointers to the match and user data.
+    #
+    # match     - A Pointer to the YRX_MATCH structure
+    # user_data - A Pointer to optional user-provided data
+    #
+    # C Signature: typedef void (*YRX_MATCH_CALLBACK)(const struct YRX_MATCH *match, void *user_data)
+    callback :match_callback, [:pointer, :pointer], :void
+
+    # Internal: Callback function type for tag iteration.
+    #
+    # This callback is invoked for each tag during rule tag iteration.
+    # The callback receives a pointer to the tag string and user data.
+    #
+    # tag       - A Pointer to null-terminated string representing the tag
+    # user_data - A Pointer to optional user-provided data
+    #
+    # C Signature: typedef void (*YRX_TAG_CALLBACK)(const char *tag, void *user_data)
+    callback :tag_callback, [:pointer, :pointer], :void
+
+    # Public: Iterate through all matches for a specific pattern.
+    #
+    # This function calls the provided callback for each match found for the
+    # given pattern during scanning. Each match provides the offset and length
+    # of where the pattern matched in the scanned data.
+    #
+    # pattern   - A Pointer to the YRX_PATTERN structure
+    # callback  - A Proc matching the match_callback signature
+    # user_data - A Pointer to optional data passed to callback (can be nil)
+    #
+    # Examples
+    #
+    #   callback = proc { |match_ptr, user_data| puts "Found match" }
+    #   result = Yara::FFI.yrx_pattern_iter_matches(pattern_ptr, callback, nil)
+    #
+    # Returns an Integer result code (YRX_SUCCESS on success).
+    # C Signature: enum YRX_RESULT yrx_pattern_iter_matches(const struct YRX_PATTERN *pattern, YRX_MATCH_CALLBACK callback, void *user_data)
+    attach_function :yrx_pattern_iter_matches, [:pointer, :match_callback, :pointer], :int
+
+    # Public: Extract the namespace from a rule object.
+    #
+    # This function retrieves the rule namespace from a YRX_RULE pointer.
+    # The namespace is returned as a pointer and length rather than a
+    # null-terminated string.
+    #
+    # rule - A Pointer to the YRX_RULE structure
+    # ns   - A FFI::MemoryPointer that will receive the namespace pointer
+    # len  - A FFI::MemoryPointer that will receive the namespace length
+    #
+    # Examples
+    #
+    #   ns_ptr = FFI::MemoryPointer.new(:pointer)
+    #   len_ptr = FFI::MemoryPointer.new(:size_t)
+    #   result = Yara::FFI.yrx_rule_namespace(rule_ptr, ns_ptr, len_ptr)
+    #
+    # Returns an Integer result code (YRX_SUCCESS on success).
+    # C Signature: enum YRX_RESULT yrx_rule_namespace(const struct YRX_RULE *rule, const uint8_t **ns, size_t *len)
+    attach_function :yrx_rule_namespace, [:pointer, :pointer, :pointer], :int
+
+    # Public: Iterate through all tags in a rule.
+    #
+    # This function calls the provided callback for each tag defined
+    # in the rule. Tags are used for categorizing and organizing rules.
+    #
+    # rule      - A Pointer to the YRX_RULE structure
+    # callback  - A Proc matching the tag_callback signature
+    # user_data - A Pointer to optional data passed to callback (can be nil)
+    #
+    # Examples
+    #
+    #   callback = proc { |tag_ptr, user_data| puts "Found tag: #{tag_ptr.read_string}" }
+    #   result = Yara::FFI.yrx_rule_iter_tags(rule_ptr, callback, nil)
+    #
+    # Returns an Integer result code (YRX_SUCCESS on success).
+    # C Signature: enum YRX_RESULT yrx_rule_iter_tags(const struct YRX_RULE *rule, YRX_TAG_CALLBACK callback, void *user_data)
+    attach_function :yrx_rule_iter_tags, [:pointer, :tag_callback, :pointer], :int
+
     # Public: YARA-X result codes for operation status.
     #
     # These constants represent the possible return values from YARA-X functions.
@@ -301,5 +473,33 @@ module Yara
 
     # Public: Invalid argument passed to function.
     YRX_INVALID_ARGUMENT = 5
+
+    # Public: Metadata type constants for YRX_METADATA_TYPE enum.
+    #
+    # These constants represent the possible types of metadata values in YARA-X.
+    # They correspond to the YRX_METADATA_TYPE enum values in the C API.
+
+    # Public: 64-bit signed integer metadata value.
+    YRX_METADATA_TYPE_I64 = 0
+
+    # Public: 64-bit floating point metadata value.
+    YRX_METADATA_TYPE_F64 = 1
+
+    # Public: Boolean metadata value.
+    YRX_METADATA_TYPE_BOOLEAN = 2
+
+    # Public: String metadata value.
+    YRX_METADATA_TYPE_STRING = 3
+
+    # Public: Bytes metadata value.
+    YRX_METADATA_TYPE_BYTES = 4
+
+    # Public: Alternative naming following YARA-X C API documentation.
+    # Maps to the same values as above for compatibility.
+    YRX_I64 = 0
+    YRX_F64 = 1
+    YRX_BOOLEAN = 2
+    YRX_STRING = 3
+    YRX_BYTES = 4
   end
 end

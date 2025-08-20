@@ -1,6 +1,6 @@
 # yara-ffi AI Coding Instructions
 
-This Ruby gem provides FFI bindings to YARA-X (Rust-based YARA implementation) for malware/pattern detection.
+This Ruby gem provides FFI bindings to YARA-X (Rust-based YARA implementation) for malware/pattern detection with advanced pattern matching analysis, rule compilation, serialization, and metadata support.
 
 ## Quick Development Guide
 
@@ -10,13 +10,84 @@ This Ruby gem provides FFI bindings to YARA-X (Rust-based YARA implementation) f
 3. Scanner lifecycle: `add_rule()` → `compile()` → `scan()` → `close()`
 4. Always use resource-safe patterns: `Scanner.open { |s| ... }` or manual `close()`
 5. Interactive testing: `docker run -it --mount type=bind,src="$(pwd)",dst=/app yara-ffi bin/console`
+6. **Documentation**: See `USAGE.md` for comprehensive examples and patterns
 
 ## Core Components (Read These Files First)
 
-- `lib/yara/scanner.rb`: Main API - compile-then-scan workflow, resource management
+- `lib/yara/scanner.rb`: Main API - compile-then-scan workflow, resource management, global variables
+- `lib/yara/compiler.rb`: Advanced rule compilation with globals, error diagnostics, serialization
+- `lib/yara/scan_result.rb`: Enhanced result parsing with pattern matches, metadata, tags, namespaces
+- `lib/yara/pattern_match.rb`: Detailed pattern match information with offsets and data extraction
 - `lib/yara/ffi.rb`: Raw FFI bindings with error codes (`YRX_SUCCESS = 0`)
-- `lib/yara/scan_result.rb`: Result parsing (temporary regex-based metadata extraction)
-- Tests in `test/scanner_test.rb`: Working examples of all patterns
+- Tests in `test/`: Comprehensive test coverage for all features
+  - `test/scanner_test.rb`: Basic scanner patterns
+  - `test/scanner_pattern_match_test.rb`: Pattern matching analysis
+  - `test/compiler_test.rb`: Advanced compilation features
+  - `test/serialize_test.rb`: Rule serialization/deserialization
+  - `test/metadata_test.rb`: Metadata extraction
+  - `test/tags_test.rb`: Tag support
+  - `test/namespace_test.rb`: Namespace functionality
+
+## Key Features & APIs
+
+### Pattern Matching Analysis (NEW)
+```ruby
+# Detailed pattern match information
+results = scanner.scan(data)
+result = results.first
+
+# Access specific pattern matches
+matches = result.matches_for_pattern(:$suspicious)
+matches.each do |match|
+  puts "At offset #{match.offset}: #{match.matched_data(data)}"
+end
+
+# Pattern match convenience methods
+result.pattern_matched?(:$api_call)  # => true/false
+result.total_matches                 # => 5
+result.all_matches                   # => [PatternMatch, ...]
+```
+
+### Advanced Rule Compilation (NEW)
+```ruby
+# Use Compiler for complex scenarios
+compiler = Yara::Compiler.new
+compiler.define_global_str("ENV", "production")
+compiler.define_global_bool("DEBUG", false)
+compiler.add_source(rule1, "rule1.yar")
+compiler.add_source(rule2, "rule2.yar")
+
+# Build and serialize
+serialized = compiler.build_serialized
+scanner = Yara::Scanner.from_serialized(serialized)
+```
+
+### Global Variables (NEW)
+```ruby
+# Set individual globals
+scanner.set_global_str("ENV", "production")
+scanner.set_global_int("MAX_SIZE", 1000)
+scanner.set_global_bool("DEBUG", false)
+
+# Bulk setting with error handling
+scanner.set_globals({
+  "ENV" => "production",
+  "RETRIES" => 3
+}, strict: false)
+```
+
+### Metadata & Tags (NEW)
+```ruby
+# Access metadata with type safety
+result.rule_meta[:author]           # Raw access
+result.metadata_string(:author)     # Type-safe String
+result.metadata_int(:severity)      # Type-safe Integer
+
+# Tag support
+result.tags                         # => ["malware", "trojan"]
+result.has_tag?("malware")         # => true
+result.qualified_name               # => "namespace.rule_name"
+```
 
 ## Critical FFI Patterns
 
@@ -113,11 +184,45 @@ scanner.close  # Required!
 ```
 
 **Error Handling:** Custom exceptions for different failure modes:
-- `CompilationError` - YARA rule syntax issues
-- `ScanError` - Runtime scanning failures
-- `NotCompiledError` - Scanning before compilation
+- `Scanner::CompilationError` - YARA rule syntax issues
+- `Scanner::ScanError` - Runtime scanning failures
+- `Scanner::NotCompiledError` - Scanning before compilation
+- `Compiler::CompileError` - Compilation errors with structured diagnostics
 
-**Metadata Parsing:** ScanResult parses YARA rule metadata and strings via regex from rule source (temporary solution until YARA-X API improvements).
+**Enhanced Result Processing:** ScanResult now provides:
+- Structured metadata access via YARA-X API
+- Detailed pattern match information with offsets/lengths
+- Tag extraction and querying
+- Namespace support
+- Pattern match convenience methods
+
+## Performance & Advanced Features
+
+**Rule Serialization for Production:**
+```ruby
+# Compile once, use many times
+compiler = Yara::Compiler.new
+compiler.add_source(ruleset)
+serialized = compiler.build_serialized
+
+# Create multiple scanners from same rules
+scanners = 10.times.map { Yara::Scanner.from_serialized(serialized) }
+```
+
+**Timeout Configuration:**
+```ruby
+scanner.set_timeout(10000)  # 10 seconds
+```
+
+**Error Diagnostics:**
+```ruby
+begin
+  compiler.build
+rescue Yara::Compiler::CompileError
+  errors = compiler.errors_json
+  warnings = compiler.warnings_json
+end
+```
 
 ## Adding New FFI Functions
 
@@ -138,8 +243,21 @@ end
 - `yrx_compile(src, rules_ptr)` - Compile rules from string
 - `yrx_scanner_create(rules, scanner_ptr)` - Create scanner from compiled rules
 - `yrx_scanner_scan(scanner, data, len)` - Scan data
+- `yrx_scanner_set_global_*()` - Set global variables on scanner
+- `yrx_scanner_set_timeout()` - Configure scan timeout
+- `yrx_compiler_*()` - Advanced compilation functions
+- `yrx_rules_serialize/deserialize()` - Rule serialization
+- `yrx_rule_iter_*()` - Iterate rule components (patterns, metadata, tags)
+- `yrx_pattern_iter_matches()` - Extract pattern match details
 - `yrx_last_error()` - Get last error message
-- Cleanup: `yrx_rules_destroy()`, `yrx_scanner_destroy()`
+- Cleanup: `yrx_rules_destroy()`, `yrx_scanner_destroy()`, `yrx_compiler_destroy()`
+
+## Documentation Structure
+
+- `README.md`: Project overview, installation, minimal usage example
+- `USAGE.md`: Comprehensive usage guide with quick reference + detailed examples
+- `DEVELOPMENT.md`: Development setup and contribution workflow
+- `.github/copilot-instructions.md`: This file - AI coding guidance
 
 ## Dependencies & Constraints
 

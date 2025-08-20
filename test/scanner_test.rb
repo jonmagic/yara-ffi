@@ -70,4 +70,120 @@ class ScannerTest < Minitest::Test
     assert_equal 1, results2.size
     scanner2.close
   end
+
+  def test_can_set_scanner_timeout
+    scanner = Yara::Scanner.new
+    scanner.add_rule(rule_one)
+    scanner.compile
+    # Setting a short timeout should not raise (FFI call should succeed)
+    scanner.set_timeout(1000)
+    scanner.close
+  end
+
+  def test_can_set_scanner_globals
+    scanner = Yara::Scanner.new
+    scanner.add_rule(rule_one)
+    scanner.compile
+
+    # Each setter should be callable. If the global wasn't defined at
+    # compile time the C API may return an error; that's acceptable here.
+    begin
+      scanner.set_global_str("ENV", "production")
+    rescue Yara::Scanner::ScanError => e
+      assert_match(/variable|not defined|Variable/, e.message, "Unexpected error for set_global_str: #{e.message}")
+    end
+
+    begin
+      scanner.set_global_bool("ENABLED", true)
+    rescue Yara::Scanner::ScanError => e
+      assert_match(/variable|not defined|Variable/, e.message, "Unexpected error for set_global_bool: #{e.message}")
+    end
+
+    begin
+      scanner.set_global_int("RETRIES", 3)
+    rescue Yara::Scanner::ScanError => e
+      assert_match(/variable|not defined|Variable/, e.message, "Unexpected error for set_global_int: #{e.message}")
+    end
+
+    begin
+      scanner.set_global_float("THRESHOLD", 0.75)
+    rescue Yara::Scanner::ScanError => e
+      assert_match(/variable|not defined|Variable/, e.message, "Unexpected error for set_global_float: #{e.message}")
+    end
+
+    scanner.close
+  end
+
+  def test_set_globals_convenience_method_lenient_mode
+    # Test that set_globals works in lenient mode when globals aren't defined
+    scanner = Yara::Scanner.new
+    scanner.add_rule(rule_one) # Simple rule that doesn't use globals
+    scanner.compile
+
+    # In lenient mode, undefined globals are silently ignored
+    scanner.set_globals({
+      "ENV" => "production",        # Undefined - will be skipped
+      "DEBUG" => false,             # Undefined - will be skipped
+      "RETRIES" => 3,               # Undefined - will be skipped
+      "THRESHOLD" => 0.95           # Undefined - will be skipped
+    }, strict: false)
+
+    # Test that scanning still works (rule doesn't depend on globals)
+    results = scanner.scan("one two three four")
+    assert_predicate results.first, :match?
+    scanner.close
+  end
+
+  def test_set_globals_convenience_method_strict_mode
+    # Test that set_globals raises in strict mode when globals aren't defined
+    scanner = Yara::Scanner.new
+    scanner.add_rule(rule_one) # Simple rule that doesn't use globals
+    scanner.compile
+
+    # In strict mode (default), undefined globals should raise
+    assert_raises(Yara::Scanner::ScanError) do
+      scanner.set_globals({
+        "UNDEFINED_GLOBAL" => "value"
+      }) # strict: true is the default
+    end
+
+    scanner.close
+  end
+
+  def test_set_globals_strict_mode_error_handling
+    scanner = Yara::Scanner.new
+    scanner.add_rule(rule_one)
+    scanner.compile
+
+    # Test strict mode (default) - should raise on unsupported type
+    assert_raises(Yara::Scanner::ScanError) do
+      scanner.set_globals({
+        "ENV" => "production",
+        "INVALID" => Object.new  # Unsupported type
+      })
+    end
+
+    scanner.close
+  end
+
+  def test_set_globals_lenient_mode_error_handling
+    scanner = Yara::Scanner.new
+    scanner.add_rule(rule_one)
+    scanner.compile
+
+    # Test lenient mode - should not raise on unsupported type
+    exception_raised = false
+    begin
+      scanner.set_globals({
+        "ENV" => "production",
+        "VALID_STR" => "test",
+        "INVALID" => Object.new  # Should be skipped silently
+      }, strict: false)
+    rescue
+      exception_raised = true
+    end
+
+    refute exception_raised, "Expected no exception in lenient mode, but got one"
+    scanner.close
+  end
 end

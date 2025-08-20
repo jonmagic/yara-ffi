@@ -1,5 +1,36 @@
 ## [Unreleased]
 
+## [4.1.0] - 2025-08-20
+
+- **NEW**: Added advanced `Yara::Compiler` API for complex rule compilation scenarios
+  - `Compiler.new` - Create a new compiler instance
+  - `Compiler#define_global_*` methods for setting globals before compilation
+  - `Compiler#add_source` for adding rules from multiple sources
+  - `Compiler#build` and `Compiler#build_serialized` for creating compiled rules
+  - `Compiler#errors_json` and `Compiler#warnings_json` for detailed diagnostics
+- **NEW**: Added rule serialization and deserialization support
+  - `Scanner.from_serialized` - Create scanner from serialized rules
+  - `Scanner.from_rules` - Create scanner from pre-compiled rules
+  - Enables compile-once, use-many-times pattern for production deployments
+- **NEW**: Enhanced pattern matching analysis with `Yara::PatternMatch`
+  - Detailed pattern match information with offsets and lengths
+  - `PatternMatch#offset`, `PatternMatch#length`, `PatternMatch#matched_data`
+  - `ScanResult#matches_for_pattern` - Get matches for specific patterns
+  - `ScanResult#pattern_matched?` - Check if specific pattern matched
+  - `ScanResult#total_matches` and `ScanResult#all_matches` for match analysis
+- **NEW**: Added comprehensive metadata and tag support
+  - Type-safe metadata accessors: `metadata_string`, `metadata_int`, `metadata_bool`
+  - `ScanResult#tags` - Access rule tags as array
+  - `ScanResult#has_tag?` - Check for specific tags
+  - `ScanResult#qualified_name` - Get namespaced rule name
+- **NEW**: Added global variable support for scanners
+  - `Scanner#set_global_str`, `Scanner#set_global_int`, `Scanner#set_global_bool`, `Scanner#set_global_float`
+  - `Scanner#set_globals` - Bulk setting with error handling options
+  - Enable dynamic rule behavior based on runtime variables
+- **NEW**: Added scanner timeout configuration via `Scanner#set_timeout`
+- **IMPROVED**: Enhanced documentation with comprehensive usage examples in `USAGE.md`
+- **IMPROVED**: Updated development documentation and AI coding instructions
+
 ## [4.0.0] - 2025-08-19
 
 - **BREAKING**: Migrated from legacy libyara FFI bindings to YARA-X C API (`libyara_x_capi.so`) ([#24](https://github.com/jonmagic/yara-ffi/pull/24))

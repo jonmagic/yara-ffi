@@ -7,6 +7,22 @@ A Ruby library for using [YARA-X](https://virustotal.github.io/yara-x/) via FFI 
 - Ruby 3.0 or later
 - YARA-X C API library (`libyara_x_capi`) installed on your system
 
+## Major Features
+
+**🔍 Pattern Matching Analysis**: Extract detailed pattern match information with exact offsets, lengths, and matched data - perfect for forensic analysis.
+
+**🛠️ Advanced Rule Compilation**: Use the `Yara::Compiler` class for complex scenarios with global variables, structured error reporting, and multiple rule sources.
+
+**💾 Rule Serialization**: Compile rules once, serialize for persistence or transport, then deserialize for instant scanning - eliminating compilation overhead.
+
+**🏷️ Metadata & Tags**: Full access to rule metadata with type safety and tag-based rule categorization and filtering.
+
+**🌐 Global Variables**: Set string, boolean, integer, and float globals at runtime to customize rule behavior dynamically.
+
+**📁 Namespace Support**: Organize rules logically, avoid naming conflicts, and access qualified rule names in large rule sets.
+
+**⚡ Performance**: Configurable scan timeouts, efficient resource management with automatic cleanup, and parallel scanning support.
+
 ## Installation
 
 Add this line to your application's Gemfile:
@@ -23,138 +39,31 @@ Or install it yourself as:
 
     $ gem install yara-ffi
 
-## Usage
-
-### Quick scanning with convenience methods
+## Quick Start
 
 ```ruby
-rule = <<-RULE
-rule ExampleRule
-{
-  meta:
-    description = "Example rule for testing"
+require 'yara'
 
-  strings:
-    $text_string = "we were here"
-    $text_regex = /were here/
+# Simple test
+results = Yara.test(rule_string, data)
+puts "Matched: #{results.first.rule_name}" if results.first&.match?
 
-  condition:
-    $text_string or $text_regex
-}
-RULE
-
-# Test a rule against data
-results = Yara.test(rule, "one day we were here and then we were not")
-puts results.first.match?  # => true
-puts results.first.rule_name  # => "ExampleRule"
-
-# Scan with a block for processing results
-Yara.scan(rule, "sample data") do |result|
-  puts "Matched: #{result.rule_name}"
-end
-```
-
-### Manual scanner usage
-
-```ruby
-rule = <<-RULE
-rule ExampleRule
-{
-  meta:
-    string_meta = "an example rule for testing"
-    int_meta = 42
-    bool_meta = true
-
-  strings:
-    $my_text_string = "we were here"
-    $my_text_regex = /were here/
-
-  condition:
-    $my_text_string or $my_text_regex
-}
-RULE
-
-scanner = Yara::Scanner.new
-scanner.add_rule(rule)
-scanner.compile
-
-results = scanner.scan("one day we were here and then we were not")
-result = results.first
-
-puts result.match?           # => true
-puts result.rule_name        # => "ExampleRule"
-puts result.rule_meta        # => {:string_meta=>"an example rule for testing", :int_meta=>42, :bool_meta=>true}
-puts result.rule_strings     # => {:"$my_text_string"=>"we were here", :"$my_text_regex"=>"were here"}
-
-scanner.close  # Clean up resources when done
-```
-
-### Block-based scanner usage
-
-```ruby
-# Automatically handles resource cleanup
+# Resource-managed scanning
 Yara::Scanner.open(rule) do |scanner|
   scanner.compile
-  results = scanner.scan("test data")
-  # scanner is automatically closed when block exits
+  results = scanner.scan(data)
 end
 ```
 
-### Multiple rules
+**📖 For comprehensive usage examples, advanced features, and API documentation, see [USAGE.md](USAGE.md).**
 
-```ruby
-rule1 = <<-RULE
-rule RuleOne
-{
-  strings:
-    $a = "pattern one"
-  condition:
-    $a
-}
-RULE
+## API Overview
 
-rule2 = <<-RULE
-rule RuleTwo
-{
-  strings:
-    $b = "pattern two"
-  condition:
-    $b
-}
-RULE
+**Core Classes**: `Yara`, `Yara::Scanner`, `Yara::Compiler`, `Yara::ScanResult`, `Yara::ScanResults`, `Yara::PatternMatch`
 
-scanner = Yara::Scanner.new
-scanner.add_rule(rule1)
-scanner.add_rule(rule2)
-scanner.compile
+**Key Methods**: `Yara.test()`, `Yara.scan()`, `Scanner.open()`, `Scanner#scan()`, `ScanResult#pattern_matches`
 
-results = scanner.scan("text with pattern one and pattern two")
-puts results.map(&:rule_name)  # => ["RuleOne", "RuleTwo"]
-scanner.close
-```
-
-## API Reference
-
-### Yara module methods
-
-- `Yara.test(rule_string, data)` - Quick test of a rule against data, returns array of ScanResult objects
-- `Yara.scan(rule_string, data, &block)` - Scan data with rule, optionally yielding each result to block
-
-### Scanner class
-
-- `Scanner.new` - Create a new scanner instance
-- `Scanner.open(rule_string, namespace: nil, &block)` - Create scanner with optional rule and namespace, auto-cleanup with block
-- `#add_rule(rule_string, namespace: nil)` - Add a YARA rule to the scanner
-- `#compile` - Compile all added rules (required before scanning)
-- `#scan(data, &block)` - Scan data and return ScanResults, or yield each result to block
-- `#close` - Free scanner resources
-
-### ScanResult class
-
-- `#match?` - Returns true if rule matched
-- `#rule_name` - Name of the matched rule
-- `#rule_meta` - Hash of rule metadata (keys are symbols)
-- `#rule_strings` - Hash of rule strings (keys are symbols with $ prefix)
+**📖 For detailed API documentation, examples, and advanced usage patterns, see [USAGE.md](USAGE.md).**
 
 ## Installing YARA-X
 
@@ -170,12 +79,8 @@ See [DEVELOPMENT.md](DEVELOPMENT.md) for detailed development setup instructions
 
 ## Contributing
 
-Bug reports and pull requests are welcome on GitHub at https://github.com/jonmagic/yara-ffi. This project is intended to be a safe, welcoming space for collaboration, and contributors are expected to adhere to the [code of conduct](https://github.com/jonmagic/yara-ffi/blob/main/CODE_OF_CONDUCT.md).
+Bug reports and pull requests are welcome on GitHub at https://github.com/jonmagic/yara-ffi. This project is intended to be a safe, welcoming space for collaboration, and contributors are expected to adhere to the [code of conduct](CODE_OF_CONDUCT.md).
 
 ## License
 
-The gem is available as open source under the terms of the [MIT License](https://opensource.org/licenses/MIT).
-
-## Code of Conduct
-
-Everyone interacting in the yara-ffi project's codebases, issue trackers, chat rooms and mailing lists is expected to follow the [code of conduct](https://github.com/jonmagic/yara-ffi/blob/main/CODE_OF_CONDUCT.md).
+The gem is available as open source under the terms of the [MIT License](LICENSE.txt).

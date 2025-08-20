@@ -63,6 +63,61 @@ module Yara
       @rule_source = ""
     end
 
+    # Create a Scanner instance from a pre-built YRX_RULES pointer.
+    #
+    # rules_ptr - FFI::Pointer returned by Compiler#build (YRX_RULES*)
+    # owns_rules - Boolean indicating whether this Scanner should destroy
+    #               the rules when closed. Default: false (caller destroys).
+    #
+    # Returns a Scanner instance.
+    def self.from_rules(rules_ptr, owns_rules: false)
+      scanner = new
+      scanner.instance_variable_set(:@rules_pointer, rules_ptr)
+      scanner.instance_variable_set(:@owns_rules, owns_rules)
+
+      # Create underlying scanner
+      scanner_holder = ::FFI::MemoryPointer.new(:pointer)
+      result = Yara::FFI.yrx_scanner_create(rules_ptr, scanner_holder)
+      if result != Yara::FFI::YRX_SUCCESS
+        error_msg = Yara::FFI.yrx_last_error
+        raise CompilationError, "Failed to create scanner from rules: #{error_msg}"
+      end
+
+      scanner.instance_variable_set(:@scanner_pointer, scanner_holder.get_pointer(0))
+      scanner
+    end
+
+    # Public: Create a Scanner from a serialized rules blob.
+    #
+    # Creates a new Scanner by deserializing a previously serialized YARA-X
+    # rules blob. This is useful when you have precompiled rules that were
+    # produced by Yara::Compiler#build_serialized or shipped between processes
+    # or persisted to disk.
+    #
+    # bytes      - A String containing the binary serialized representation of YRX_RULES
+    # owns_rules - A Boolean indicating if the returned Scanner will take ownership
+    #              of the underlying rules and destroy them when close is called.
+    #              If false, the caller is responsible for freeing the rules with
+    #              Yara::FFI.yrx_rules_destroy (default: true)
+    #
+    # Returns a Scanner instance that is ready to use (no additional compile step required).
+    # Raises CompilationError if deserialization fails.
+    def self.from_serialized(bytes, owns_rules: true)
+      data_ptr = ::FFI::MemoryPointer.from_string(bytes)
+      data_len = bytes.bytesize
+
+      rules_ptr_holder = ::FFI::MemoryPointer.new(:pointer)
+      result = Yara::FFI.yrx_rules_deserialize(data_ptr, data_len, rules_ptr_holder)
+      if result != Yara::FFI::YRX_SUCCESS
+        error_msg = Yara::FFI.yrx_last_error
+        raise CompilationError, "Failed to deserialize rules: #{error_msg}"
+      end
+
+      rules_ptr = rules_ptr_holder.get_pointer(0)
+      scanner = from_rules(rules_ptr, owns_rules: owns_rules)
+      scanner
+    end
+
     # Public: Add a YARA rule to the scanner for later compilation.
     #
     # Rules are accumulated as source code and compiled together when compile()
@@ -134,6 +189,10 @@ module Yara
     # information about any matches found. When a block is provided, each
     # matching rule is yielded immediately as it's discovered during scanning.
     #
+    # The enhanced version provides detailed pattern match information including
+    # exact offsets and lengths for each pattern match, enabling precise forensic
+    # analysis and data extraction.
+    #
     # Scanning treats the input as binary data regardless of content type.
     # String encoding is preserved but pattern matching occurs at the byte level.
     #
@@ -142,13 +201,21 @@ module Yara
     #
     # Examples
     #
-    #   # Collect all results
+    #   # Collect all results with detailed pattern matches
     #   results = scanner.scan("data to scan")
-    #   results.each { |match| puts match.rule_name }
+    #   results.each do |match|
+    #     puts "Rule: #{match.rule_name}"
+    #     match.pattern_matches.each do |pattern_name, matches|
+    #       puts "  Pattern #{pattern_name}: #{matches.size} matches"
+    #       matches.each do |m|
+    #         puts "    At offset #{m.offset}: '#{m.matched_data(test_string)}'"
+    #       end
+    #     end
+    #   end
     #
-    #   # Process matches immediately
+    #   # Process matches immediately with pattern details
     #   scanner.scan("data to scan") do |match|
-    #     puts "Found: #{match.rule_name}"
+    #     puts "Found: #{match.rule_name} (#{match.total_matches} matches)"
     #   end
     #
     # Returns a ScanResults object containing matches when no block given.
@@ -172,7 +239,8 @@ module Yara
           rule_name = identifier_ptr.read_string(identifier_len)
 
           # Create a result with the rule source for metadata/string parsing
-          result = ScanResult.new(rule_name, rule_ptr, true, @rule_source)
+          # and the scanned data for pattern match extraction
+          result = ScanResult.new(rule_name, rule_ptr, true, @rule_source, test_string)
           results << result
 
           yield result if block_given?
@@ -200,6 +268,139 @@ module Yara
       block_given? ? nil : results
     end
 
+    # Public: Set a timeout for scanning operations on this scanner (milliseconds).
+    #
+    # This method configures the scanner to abort scans that take longer than
+    # the given timeout value. The timeout is specified in milliseconds.
+    #
+    # timeout_ms - Integer milliseconds to use as timeout
+    #
+    # Returns nothing. Raises ScanError on failure to set the timeout.
+    def set_timeout(timeout_ms)
+      raise NotCompiledError, "Scanner not initialized" unless @scanner_pointer
+
+      result = Yara::FFI.yrx_scanner_set_timeout(@scanner_pointer, timeout_ms)
+      if result != Yara::FFI::YRX_SUCCESS
+        error_msg = Yara::FFI.yrx_last_error
+        raise ScanError, "Failed to set timeout: #{error_msg}"
+      end
+      nil
+    end
+
+    # Public: Set a global String variable for this scanner.
+    def set_global_str(ident, value)
+      raise NotCompiledError, "Scanner not initialized" unless @scanner_pointer
+
+      result = Yara::FFI.yrx_scanner_set_global_str(@scanner_pointer, ident, value)
+      if result != Yara::FFI::YRX_SUCCESS
+        error_msg = Yara::FFI.yrx_last_error
+        raise ScanError, "Failed to set global string #{ident}: #{error_msg}"
+      end
+      nil
+    end
+
+    # Public: Set a global Boolean variable for this scanner.
+    def set_global_bool(ident, value)
+      raise NotCompiledError, "Scanner not initialized" unless @scanner_pointer
+
+      result = Yara::FFI.yrx_scanner_set_global_bool(@scanner_pointer, ident, !!value)
+      if result != Yara::FFI::YRX_SUCCESS
+        error_msg = Yara::FFI.yrx_last_error
+        raise ScanError, "Failed to set global bool #{ident}: #{error_msg}"
+      end
+      nil
+    end
+
+    # Public: Set a global Integer variable for this scanner.
+    def set_global_int(ident, value)
+      raise NotCompiledError, "Scanner not initialized" unless @scanner_pointer
+
+      result = Yara::FFI.yrx_scanner_set_global_int(@scanner_pointer, ident, value)
+      if result != Yara::FFI::YRX_SUCCESS
+        error_msg = Yara::FFI.yrx_last_error
+        raise ScanError, "Failed to set global int #{ident}: #{error_msg}"
+      end
+      nil
+    end
+
+    # Public: Set a global Float variable for this scanner.
+    def set_global_float(ident, value)
+      raise NotCompiledError, "Scanner not initialized" unless @scanner_pointer
+
+      result = Yara::FFI.yrx_scanner_set_global_float(@scanner_pointer, ident, value)
+      if result != Yara::FFI::YRX_SUCCESS
+        error_msg = Yara::FFI.yrx_last_error
+        raise ScanError, "Failed to set global float #{ident}: #{error_msg}"
+      end
+      nil
+    end
+
+    # Public: Set multiple global variables at once from a hash.
+    #
+    # This convenience method allows setting multiple global variables in a single
+    # call, automatically detecting the appropriate type for each value. Supports
+    # String, Boolean (true/false), Integer, and Float values.
+    #
+    # globals - A Hash where keys are global variable names (String) and values
+    #           are the global variable values (String, Boolean, Integer, or Float)
+    # strict  - A Boolean indicating error handling mode:
+    #           * true: raise ScanError on any failure (default)
+    #           * false: ignore errors and continue setting other globals
+    #
+    # Examples
+    #
+    #   # Set multiple globals with strict error handling
+    #   scanner.set_globals({
+    #     "ENV" => "production",
+    #     "DEBUG" => false,
+    #     "RETRIES" => 3,
+    #     "THRESHOLD" => 0.95
+    #   })
+    #
+    #   # Set globals with lenient error handling
+    #   scanner.set_globals({
+    #     "DEFINED_VAR" => "value",
+    #     "UNDEFINED_VAR" => "ignored"  # Won't raise if undefined
+    #   }, strict: false)
+    #
+    # Returns nothing.
+    # Raises NotCompiledError if scanner not initialized.
+    # Raises ScanError on any global setting failure when strict=true.
+    def set_globals(globals, strict: true)
+      raise NotCompiledError, "Scanner not initialized" unless @scanner_pointer
+
+      globals.each do |ident, value|
+        begin
+          case value
+          when String
+            set_global_str(ident, value)
+          when TrueClass, FalseClass
+            set_global_bool(ident, value)
+          when Integer
+            set_global_int(ident, value)
+          when Float
+            set_global_float(ident, value)
+          else
+            error_msg = "Unsupported global variable type for '#{ident}': #{value.class}"
+            if strict
+              raise ScanError, error_msg
+            else
+              # In non-strict mode, skip unsupported types silently
+              next
+            end
+          end
+        rescue ScanError => e
+          if strict
+            raise e
+          else
+            # In non-strict mode, continue with remaining globals
+            next
+          end
+        end
+      end
+      nil
+    end
+
     # Public: Free all resources associated with this scanner.
     #
     # This method releases memory allocated by YARA-X for the compiled rules
@@ -219,7 +420,9 @@ module Yara
     # Returns nothing.
     def close
       Yara::FFI.yrx_scanner_destroy(@scanner_pointer) if @scanner_pointer
-      Yara::FFI.yrx_rules_destroy(@rules_pointer) if @rules_pointer
+      if @rules_pointer && instance_variable_defined?(:@owns_rules) && @owns_rules
+        Yara::FFI.yrx_rules_destroy(@rules_pointer)
+      end
       @scanner_pointer = nil
       @rules_pointer = nil
     end
