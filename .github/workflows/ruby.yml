@@ -41,6 +41,9 @@ jobs:
         curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
         source $HOME/.cargo/env
 
+        # Set default Rust toolchain
+        rustup default stable
+
         # Install cargo-c
         cargo install cargo-c
 
