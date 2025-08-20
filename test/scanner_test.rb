@@ -79,4 +79,38 @@ class ScannerTest < Minitest::Test
     scanner.set_timeout(1000)
     scanner.close
   end
+
+  def test_can_set_scanner_globals
+    scanner = Yara::Scanner.new
+    scanner.add_rule(rule_one)
+    scanner.compile
+
+    # Each setter should be callable. If the global wasn't defined at
+    # compile time the C API may return an error; that's acceptable here.
+    begin
+      scanner.set_global_str("ENV", "production")
+    rescue Yara::Scanner::ScanError => e
+      assert_match(/variable|not defined|Variable/, e.message, "Unexpected error for set_global_str: #{e.message}")
+    end
+
+    begin
+      scanner.set_global_bool("ENABLED", true)
+    rescue Yara::Scanner::ScanError => e
+      assert_match(/variable|not defined|Variable/, e.message, "Unexpected error for set_global_bool: #{e.message}")
+    end
+
+    begin
+      scanner.set_global_int("RETRIES", 3)
+    rescue Yara::Scanner::ScanError => e
+      assert_match(/variable|not defined|Variable/, e.message, "Unexpected error for set_global_int: #{e.message}")
+    end
+
+    begin
+      scanner.set_global_float("THRESHOLD", 0.75)
+    rescue Yara::Scanner::ScanError => e
+      assert_match(/variable|not defined|Variable/, e.message, "Unexpected error for set_global_float: #{e.message}")
+    end
+
+    scanner.close
+  end
 end

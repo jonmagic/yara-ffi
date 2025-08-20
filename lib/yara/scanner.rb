@@ -219,6 +219,54 @@ module Yara
       nil
     end
 
+    # Public: Set a global String variable for this scanner.
+    def set_global_str(ident, value)
+      raise NotCompiledError, "Scanner not initialized" unless @scanner_pointer
+
+      result = Yara::FFI.yrx_scanner_set_global_str(@scanner_pointer, ident, value)
+      if result != Yara::FFI::YRX_SUCCESS
+        error_msg = Yara::FFI.yrx_last_error
+        raise ScanError, "Failed to set global string #{ident}: #{error_msg}"
+      end
+      nil
+    end
+
+    # Public: Set a global Boolean variable for this scanner.
+    def set_global_bool(ident, value)
+      raise NotCompiledError, "Scanner not initialized" unless @scanner_pointer
+
+      result = Yara::FFI.yrx_scanner_set_global_bool(@scanner_pointer, ident, !!value)
+      if result != Yara::FFI::YRX_SUCCESS
+        error_msg = Yara::FFI.yrx_last_error
+        raise ScanError, "Failed to set global bool #{ident}: #{error_msg}"
+      end
+      nil
+    end
+
+    # Public: Set a global Integer variable for this scanner.
+    def set_global_int(ident, value)
+      raise NotCompiledError, "Scanner not initialized" unless @scanner_pointer
+
+      result = Yara::FFI.yrx_scanner_set_global_int(@scanner_pointer, ident, value)
+      if result != Yara::FFI::YRX_SUCCESS
+        error_msg = Yara::FFI.yrx_last_error
+        raise ScanError, "Failed to set global int #{ident}: #{error_msg}"
+      end
+      nil
+    end
+
+    # Public: Set a global Float variable for this scanner.
+    def set_global_float(ident, value)
+      raise NotCompiledError, "Scanner not initialized" unless @scanner_pointer
+
+      result = Yara::FFI.yrx_scanner_set_global_float(@scanner_pointer, ident, value)
+      if result != Yara::FFI::YRX_SUCCESS
+        error_msg = Yara::FFI.yrx_last_error
+        raise ScanError, "Failed to set global float #{ident}: #{error_msg}"
+      end
+      nil
+    end
+
     # Public: Free all resources associated with this scanner.
     #
     # This method releases memory allocated by YARA-X for the compiled rules

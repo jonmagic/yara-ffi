@@ -187,6 +187,22 @@ module Yara
     # C Signature: enum YRX_RESULT yrx_scanner_set_timeout(struct YRX_SCANNER *scanner, uint64_t timeout)
     attach_function :yrx_scanner_set_timeout, [:pointer, :ulong_long], :int
 
+    # Public: Set a global string variable for the scanner.
+    # C Signature: enum YRX_RESULT yrx_scanner_set_global_str(struct YRX_SCANNER *scanner, const char *ident, const char *value)
+    attach_function :yrx_scanner_set_global_str, [:pointer, :string, :string], :int
+
+    # Public: Set a global boolean variable for the scanner.
+    # C Signature: enum YRX_RESULT yrx_scanner_set_global_bool(struct YRX_SCANNER *scanner, const char *ident, bool value)
+    attach_function :yrx_scanner_set_global_bool, [:pointer, :string, :bool], :int
+
+    # Public: Set a global integer variable for the scanner.
+    # C Signature: enum YRX_RESULT yrx_scanner_set_global_int(struct YRX_SCANNER *scanner, const char *ident, int64_t value)
+    attach_function :yrx_scanner_set_global_int, [:pointer, :string, :long_long], :int
+
+    # Public: Set a global float variable for the scanner.
+    # C Signature: enum YRX_RESULT yrx_scanner_set_global_float(struct YRX_SCANNER *scanner, const char *ident, double value)
+    attach_function :yrx_scanner_set_global_float, [:pointer, :string, :double], :int
+
     # Public: Extract the identifier (name) from a rule object.
     #
     # This function retrieves the rule name from a YRX_RULE pointer, typically
