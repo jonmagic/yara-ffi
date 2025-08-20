@@ -50,7 +50,11 @@ jobs:
         # Build and install YARA-X C API library
         git clone --depth 1 --branch v1.5.0 https://github.com/VirusTotal/yara-x.git /tmp/yara-x
         cd /tmp/yara-x
-        sudo env "PATH=$HOME/.cargo/bin:$PATH" $HOME/.cargo/bin/cargo cinstall -p yara-x-capi --release
+
+        # Ensure rustup default is set before running cargo with sudo
+        source $HOME/.cargo/env
+        rustup default stable
+        sudo env "PATH=$HOME/.cargo/bin:$PATH" "RUSTUP_HOME=$HOME/.rustup" "CARGO_HOME=$HOME/.cargo" $HOME/.cargo/bin/cargo cinstall -p yara-x-capi --release
         sudo ldconfig
     - name: Run tests
       run: bundle exec rake test
