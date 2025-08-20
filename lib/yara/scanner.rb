@@ -189,6 +189,10 @@ module Yara
     # information about any matches found. When a block is provided, each
     # matching rule is yielded immediately as it's discovered during scanning.
     #
+    # The enhanced version provides detailed pattern match information including
+    # exact offsets and lengths for each pattern match, enabling precise forensic
+    # analysis and data extraction.
+    #
     # Scanning treats the input as binary data regardless of content type.
     # String encoding is preserved but pattern matching occurs at the byte level.
     #
@@ -197,13 +201,21 @@ module Yara
     #
     # Examples
     #
-    #   # Collect all results
+    #   # Collect all results with detailed pattern matches
     #   results = scanner.scan("data to scan")
-    #   results.each { |match| puts match.rule_name }
+    #   results.each do |match|
+    #     puts "Rule: #{match.rule_name}"
+    #     match.pattern_matches.each do |pattern_name, matches|
+    #       puts "  Pattern #{pattern_name}: #{matches.size} matches"
+    #       matches.each do |m|
+    #         puts "    At offset #{m.offset}: '#{m.matched_data(test_string)}'"
+    #       end
+    #     end
+    #   end
     #
-    #   # Process matches immediately
+    #   # Process matches immediately with pattern details
     #   scanner.scan("data to scan") do |match|
-    #     puts "Found: #{match.rule_name}"
+    #     puts "Found: #{match.rule_name} (#{match.total_matches} matches)"
     #   end
     #
     # Returns a ScanResults object containing matches when no block given.
@@ -227,7 +239,8 @@ module Yara
           rule_name = identifier_ptr.read_string(identifier_len)
 
           # Create a result with the rule source for metadata/string parsing
-          result = ScanResult.new(rule_name, rule_ptr, true, @rule_source)
+          # and the scanned data for pattern match extraction
+          result = ScanResult.new(rule_name, rule_ptr, true, @rule_source, test_string)
           results << result
 
           yield result if block_given?

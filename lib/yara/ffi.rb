@@ -250,6 +250,12 @@ module Yara
              :length, :size_t
     end
 
+    # Struct mapping for YRX_MATCH
+    class YRX_MATCH < ::FFI::Struct
+      layout :offset, :size_t,
+             :length, :size_t
+    end
+
     # Public: Extract the identifier (name) from a rule object.
     #
     # This function retrieves the rule name from a YRX_RULE pointer, typically
@@ -350,6 +356,36 @@ module Yara
     # C Signature: enum YRX_RESULT yrx_pattern_identifier(const struct YRX_PATTERN *pattern, const uint8_t **ident, size_t *len)
     attach_function :yrx_pattern_identifier, [:pointer, :pointer, :pointer], :int
 
+    # Internal: Callback function type for match iteration.
+    #
+    # This callback is invoked for each match found during pattern match
+    # iteration. The callback receives pointers to the match and user data.
+    #
+    # match     - A Pointer to the YRX_MATCH structure
+    # user_data - A Pointer to optional user-provided data
+    #
+    # C Signature: typedef void (*YRX_MATCH_CALLBACK)(const struct YRX_MATCH *match, void *user_data)
+    callback :match_callback, [:pointer, :pointer], :void
+
+    # Public: Iterate through all matches for a specific pattern.
+    #
+    # This function calls the provided callback for each match found for the
+    # given pattern during scanning. Each match provides the offset and length
+    # of where the pattern matched in the scanned data.
+    #
+    # pattern   - A Pointer to the YRX_PATTERN structure
+    # callback  - A Proc matching the match_callback signature
+    # user_data - A Pointer to optional data passed to callback (can be nil)
+    #
+    # Examples
+    #
+    #   callback = proc { |match_ptr, user_data| puts "Found match" }
+    #   result = Yara::FFI.yrx_pattern_iter_matches(pattern_ptr, callback, nil)
+    #
+    # Returns an Integer result code (YRX_SUCCESS on success).
+    # C Signature: enum YRX_RESULT yrx_pattern_iter_matches(const struct YRX_PATTERN *pattern, YRX_MATCH_CALLBACK callback, void *user_data)
+    attach_function :yrx_pattern_iter_matches, [:pointer, :match_callback, :pointer], :int
+
     # Public: YARA-X result codes for operation status.
     #
     # These constants represent the possible return values from YARA-X functions.
@@ -373,5 +409,25 @@ module Yara
 
     # Public: Invalid argument passed to function.
     YRX_INVALID_ARGUMENT = 5
+
+    # Public: Metadata type constants for YRX_METADATA_TYPE enum.
+    #
+    # These constants represent the possible types of metadata values in YARA-X.
+    # They correspond to the YRX_METADATA_TYPE enum values in the C API.
+
+    # Public: 64-bit signed integer metadata value.
+    YRX_METADATA_TYPE_I64 = 0
+
+    # Public: 64-bit floating point metadata value.
+    YRX_METADATA_TYPE_F64 = 1
+
+    # Public: Boolean metadata value.
+    YRX_METADATA_TYPE_BOOLEAN = 2
+
+    # Public: String metadata value.
+    YRX_METADATA_TYPE_STRING = 3
+
+    # Public: Bytes metadata value.
+    YRX_METADATA_TYPE_BYTES = 4
   end
 end
