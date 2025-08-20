@@ -35,18 +35,19 @@ jobs:
         sudo apt-get update -y
         sudo apt-get install -y curl git unzip build-essential
 
-    - name: Install Rust and cargo-c
+    - name: Install Rust, cargo-c, and build YARA-X C API library
       run: |
+        # Install Rust
         curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
         source $HOME/.cargo/env
+
+        # Install cargo-c
         cargo install cargo-c
 
-    - name: Build and install YARA-X C API library
-      run: |
-        source $HOME/.cargo/env
+        # Build and install YARA-X C API library
         git clone --depth 1 --branch v1.5.0 https://github.com/VirusTotal/yara-x.git /tmp/yara-x
         cd /tmp/yara-x
-        sudo cargo cinstall -p yara-x-capi --release
+        sudo -E cargo cinstall -p yara-x-capi --release
         sudo ldconfig
 
     - name: Run tests
