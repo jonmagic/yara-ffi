@@ -178,6 +178,15 @@ module Yara
     # C Signature: enum YRX_RESULT yrx_scanner_scan(struct YRX_SCANNER *scanner, const uint8_t *data, size_t len)
     attach_function :yrx_scanner_scan, [:pointer, :pointer, :size_t], :int
 
+    # Public: Set timeout (in milliseconds) for a scanner.
+    #
+    # scanner - A Pointer to the scanner object
+    # timeout - A uint64_t value representing timeout in milliseconds
+    #
+    # Returns an Integer result code (YRX_SUCCESS on success).
+    # C Signature: enum YRX_RESULT yrx_scanner_set_timeout(struct YRX_SCANNER *scanner, uint64_t timeout)
+    attach_function :yrx_scanner_set_timeout, [:pointer, :ulong_long], :int
+
     # Public: Extract the identifier (name) from a rule object.
     #
     # This function retrieves the rule name from a YRX_RULE pointer, typically

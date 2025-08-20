@@ -200,6 +200,25 @@ module Yara
       block_given? ? nil : results
     end
 
+    # Public: Set a timeout for scanning operations on this scanner (milliseconds).
+    #
+    # This method configures the scanner to abort scans that take longer than
+    # the given timeout value. The timeout is specified in milliseconds.
+    #
+    # timeout_ms - Integer milliseconds to use as timeout
+    #
+    # Returns nothing. Raises ScanError on failure to set the timeout.
+    def set_timeout(timeout_ms)
+      raise NotCompiledError, "Scanner not initialized" unless @scanner_pointer
+
+      result = Yara::FFI.yrx_scanner_set_timeout(@scanner_pointer, timeout_ms)
+      if result != Yara::FFI::YRX_SUCCESS
+        error_msg = Yara::FFI.yrx_last_error
+        raise ScanError, "Failed to set timeout: #{error_msg}"
+      end
+      nil
+    end
+
     # Public: Free all resources associated with this scanner.
     #
     # This method releases memory allocated by YARA-X for the compiled rules

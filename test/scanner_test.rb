@@ -70,4 +70,13 @@ class ScannerTest < Minitest::Test
     assert_equal 1, results2.size
     scanner2.close
   end
+
+  def test_can_set_scanner_timeout
+    scanner = Yara::Scanner.new
+    scanner.add_rule(rule_one)
+    scanner.compile
+    # Setting a short timeout should not raise (FFI call should succeed)
+    scanner.set_timeout(1000)
+    scanner.close
+  end
 end
