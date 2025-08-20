@@ -41,7 +41,7 @@ class CompilerTest < Minitest::Test
 
     scanner = Yara::Scanner.from_rules(rules_ptr, owns_rules: true)
     # No explicit compile needed; scanner is ready to use
-    results = scanner.scan("")
+    scanner.scan("")
 
     # Clean up via Scanner.close (owns_rules: true will destroy rules)
     scanner.close

@@ -179,7 +179,7 @@ class ScannerTest < Minitest::Test
         "VALID_STR" => "test",
         "INVALID" => Object.new  # Should be skipped silently
       }, strict: false)
-    rescue => e
+    rescue
       exception_raised = true
     end
 
