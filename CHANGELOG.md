@@ -1,5 +1,18 @@
 ## [Unreleased]
 
+## [4.2.0] - 2025-11-13
+
+- **NEW**: Added rule iteration API for inspecting compiled rules without scanning
+  - `Scanner#each_rule` - Iterate through all compiled rules (returns Enumerator)
+  - `Yara::Rule` class for accessing rule properties
+  - `Rule#identifier` - Get rule name
+  - `Rule#namespace` - Get rule namespace
+  - `Rule#metadata` - Access rule metadata as hash
+  - `Rule#tags` - Get rule tags as array
+  - Enables building rule catalogs and introspection without scanning data
+  - Works with compiled rules from `Scanner`, `Compiler`, or deserialized rules
+- **IMPROVED**: Enhanced FFI struct handling for better memory safety with unions
+
 ## [4.1.1] - 2025-08-20
 
 - **FIXED**: Fixed crash when `Yara.test` or `Yara.scan` receive `nil` as the test string parameter ([#15](https://github.com/jonmagic/yara-ffi/issues/15))
