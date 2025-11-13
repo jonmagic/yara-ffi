@@ -69,6 +69,25 @@ result.tags                         # => ["malware", "trojan"]
 result.has_tag?("malware")         # => true
 ```
 
+### Rule Iteration (Without Scanning)
+
+```ruby
+# Inspect compiled rules without scanning data
+scanner.compile
+scanner.each_rule do |rule|
+  puts "Rule: #{rule.identifier}"
+  puts "Namespace: #{rule.namespace}"
+  puts "Tags: #{rule.tags.join(', ')}"
+
+  # Access metadata
+  rule.metadata.each { |k, v| puts "  #{k}: #{v}" }
+
+  # Type-safe metadata access
+  author = rule.metadata_string(:author)
+  severity = rule.metadata_int(:severity)
+end
+```
+
 ### Global Variables
 
 ```ruby
@@ -282,6 +301,141 @@ results2 = scanner.scan(data2)
 
 # 4. Clean up
 scanner.close
+```
+
+### Iterating Rules Without Scanning
+
+Extract rule information, metadata, and tags without scanning any data:
+
+```ruby
+# Setup: compile multiple rules
+scanner = Yara::Scanner.new
+scanner.add_rule(rule1)
+scanner.add_rule(rule2, namespace: "malware")
+scanner.compile
+
+# Iterate through all compiled rules
+scanner.each_rule do |rule|
+  puts "Rule: #{rule.identifier}"
+  puts "Namespace: #{rule.namespace || 'default'}"
+  puts "Qualified Name: #{rule.qualified_name}"
+
+  # Access metadata
+  puts "\nMetadata:"
+  rule.metadata.each do |key, value|
+    puts "  #{key}: #{value}"
+  end
+
+  # Access tags
+  if rule.tags.any?
+    puts "\nTags: #{rule.tags.join(', ')}"
+  end
+
+  # Type-safe metadata access
+  if author = rule.metadata_string(:author)
+    puts "Author: #{author}"
+  end
+
+  if severity = rule.metadata_int(:severity)
+    puts "Severity: #{severity}/10"
+  end
+
+  # Check for specific tags
+  if rule.has_tag?("trojan")
+    puts "⚠️  Trojan detection rule"
+  end
+end
+
+# Use as an Enumerator
+rules = scanner.each_rule.to_a
+puts "Total rules: #{rules.size}"
+
+# Filter rules by criteria
+high_severity = scanner.each_rule.select do |rule|
+  (rule.metadata_int(:severity) || 0) >= 8
+end
+
+malware_rules = scanner.each_rule.select do |rule|
+  rule.has_tag?("malware")
+end
+
+scanner.close
+```
+
+**Example Rule with Metadata:**
+
+```ruby
+rule = <<-RULE
+rule SuspiciousActivity : malware trojan
+{
+  meta:
+    author = "Security Team"
+    description = "Detects suspicious API calls"
+    severity = 8
+    date = "2024-01-15"
+    is_active = true
+    confidence = 0.95
+
+  strings:
+    $api1 = "VirtualAlloc"
+    $api2 = "WriteProcessMemory"
+
+  condition:
+    all of them
+}
+RULE
+
+scanner = Yara::Scanner.new
+scanner.add_rule(rule, namespace: "detection")
+scanner.compile
+
+scanner.each_rule do |rule|
+  puts "Rule: #{rule.identifier}"           # => "SuspiciousActivity"
+  puts "Namespace: #{rule.namespace}"       # => "detection"
+  puts "Full name: #{rule.qualified_name}"  # => "detection.SuspiciousActivity"
+
+  # Access metadata with type safety
+  puts "Author: #{rule.metadata_string(:author)}"           # => "Security Team"
+  puts "Severity: #{rule.metadata_int(:severity)}"          # => 8
+  puts "Active: #{rule.metadata_bool(:is_active)}"          # => true
+  puts "Confidence: #{rule.metadata_float(:confidence)}"    # => 0.95
+
+  # Check tags
+  puts "Is malware rule: #{rule.has_tag?('malware')}"       # => true
+  puts "Tags: #{rule.tags.join(', ')}"                      # => "malware, trojan"
+end
+
+scanner.close
+```
+
+**Use Case: Building a Rule Catalog**
+
+```ruby
+# Create a catalog of all rules without scanning
+def build_rule_catalog(scanner)
+  catalog = {}
+
+  scanner.each_rule do |rule|
+    catalog[rule.identifier] = {
+      namespace: rule.namespace,
+      description: rule.metadata_string(:description),
+      author: rule.metadata_string(:author),
+      severity: rule.metadata_int(:severity),
+      tags: rule.tags,
+      active: rule.metadata_bool(:is_active) != false
+    }
+  end
+
+  catalog
+end
+
+scanner.compile
+catalog = build_rule_catalog(scanner)
+
+# Query the catalog
+catalog.each do |name, info|
+  puts "#{name}: #{info[:description]}" if info[:active]
+end
 ```
 
 ## Pattern Matching Analysis

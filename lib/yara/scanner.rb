@@ -271,6 +271,55 @@ module Yara
       block_given? ? nil : results
     end
 
+    # Public: Iterate through all compiled rules without scanning.
+    #
+    # This method iterates through all rules in the compiled ruleset, yielding
+    # each as a Rule object. Unlike scan(), this does not require any data and
+    # provides access to rule metadata, tags, and other information for inspection.
+    #
+    # This is useful for:
+    # - Inspecting compiled rules without scanning
+    # - Extracting metadata from rule sets
+    # - Validating rule compilation
+    # - Building rule catalogs or indexes
+    #
+    # If no block is given, returns an Enumerator.
+    #
+    # Examples
+    #
+    #   # Iterate with a block
+    #   scanner.each_rule do |rule|
+    #     puts "Rule: #{rule.identifier}"
+    #     puts "Namespace: #{rule.namespace}"
+    #     puts "Tags: #{rule.tags.join(', ')}"
+    #     rule.metadata.each { |k, v| puts "  #{k}: #{v}" }
+    #   end
+    #
+    #   # Or use as an Enumerator
+    #   rules = scanner.each_rule.to_a
+    #
+    # Yields each Rule object.
+    # Returns nil when block given, Enumerator when no block given.
+    # Raises NotCompiledError if rules haven't been compiled yet.
+    def each_rule
+      raise NotCompiledError, "Rules must be compiled before iterating" unless @rules_pointer
+
+      return enum_for(:each_rule) unless block_given?
+
+      rule_callback = proc do |rule_ptr, _user_data|
+        rule = Rule.new(rule_ptr)
+        yield rule
+      end
+
+      result = Yara::FFI.yrx_rules_iter(@rules_pointer, rule_callback, nil)
+      if result != Yara::FFI::YRX_SUCCESS
+        error_msg = Yara::FFI.yrx_last_error
+        raise ScanError, "Failed to iterate rules: #{error_msg}"
+      end
+
+      nil
+    end
+
     # Public: Set a timeout for scanning operations on this scanner (milliseconds).
     #
     # This method configures the scanner to abort scans that take longer than

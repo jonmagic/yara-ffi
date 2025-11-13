@@ -139,6 +139,17 @@ module Yara
     # C Signature: typedef void (*YRX_ON_MATCHING_RULE)(const struct YRX_RULE *rule, void *user_data)
     callback :matching_rule_callback, [:pointer, :pointer], :void
 
+    # Internal: Callback function type for rule iteration.
+    #
+    # This callback is invoked for each rule during rule iteration.
+    # The callback receives pointers to the rule and optional user data.
+    #
+    # rule      - A Pointer to the YRX_RULE structure
+    # user_data - A Pointer to optional user-provided data
+    #
+    # C Signature: typedef void (*YRX_RULE_CALLBACK)(const struct YRX_RULE *rule, void *user_data)
+    callback :rule_callback, [:pointer, :pointer], :void
+
     # Public: Set callback for handling rule matches during scanning.
     #
     # This function registers a callback that will be invoked each time a rule
@@ -157,6 +168,26 @@ module Yara
     # Returns an Integer result code (YRX_SUCCESS on success).
     # C Signature: enum YRX_RESULT yrx_scanner_on_matching_rule(struct YRX_SCANNER *scanner, YRX_ON_MATCHING_RULE callback, void *user_data)
     attach_function :yrx_scanner_on_matching_rule, [:pointer, :matching_rule_callback, :pointer], :int
+
+    # Public: Iterate through all compiled rules without scanning.
+    #
+    # This function calls the provided callback for each rule in the compiled
+    # rules object, regardless of whether they would match any data. This is
+    # useful for inspecting rule metadata, tags, and patterns without performing
+    # an actual scan.
+    #
+    # rules     - A Pointer to the YRX_RULES structure
+    # callback  - A Proc matching the rule_callback signature
+    # user_data - A Pointer to optional data passed to callback (can be nil)
+    #
+    # Examples
+    #
+    #   callback = proc { |rule_ptr, user_data| puts "Found rule" }
+    #   result = Yara::FFI.yrx_rules_iter(rules_ptr, callback, nil)
+    #
+    # Returns an Integer result code (YRX_SUCCESS on success).
+    # C Signature: enum YRX_RESULT yrx_rules_iter(const struct YRX_RULES *rules, YRX_RULE_CALLBACK callback, void *user_data)
+    attach_function :yrx_rules_iter, [:pointer, :rule_callback, :pointer], :int
 
     # Public: Scan data using the configured scanner and rules.
     #
