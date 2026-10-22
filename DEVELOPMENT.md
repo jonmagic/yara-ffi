@@ -22,6 +22,7 @@ The project includes several convenience scripts in the `script/` directory:
 
 - `script/bootstrap` - Sets up the development environment (builds Docker image)
 - `script/test` - Runs the test suite in the Docker container
+- `script/console` - Runs a pry interactive console in the Docker container
 
 ## Running Tests
 
@@ -59,7 +60,7 @@ For an interactive development session, you can start a console in the container
 docker run -it --mount type=bind,src="$(pwd)",dst=/app yara-ffi bin/console
 ```
 
-This gives you an IRB session with the gem loaded for experimentation.
+This gives you a Pry session with the gem loaded for experimentation.
 
 ## Development Environment Details
 
