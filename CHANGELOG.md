@@ -1,5 +1,10 @@
 ## [Unreleased]
 
+## [4.2.1] - 2026-10-22
+
+- **FIXED**: Removed the development-only `pry` require from the runtime load path while retaining `pry` in development and test entry points ([#28](https://github.com/jonmagic/yara-ffi/pull/28))
+- Added regression coverage for loading the built gem without development or test dependencies
+
 ## [4.2.0] - 2025-11-13
 
 - **NEW**: Added rule iteration API for inspecting compiled rules without scanning
